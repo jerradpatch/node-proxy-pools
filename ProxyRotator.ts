@@ -1,18 +1,21 @@
 
 import * as rp from 'request-promise'
 import {range} from "rxjs";
-import {concatMap, map, mergeMap, tap, toArray} from "rxjs/operators";
+import {concatMap, mergeMap, tap, toArray} from "rxjs/operators";
 
 export default class ProxyRotator {
 
-  constructor(private fetchProxies = 200, private threads = 10, private debug?){}
-  url = 'http://falcon.proxyrotator.com:51337/?apiKey=B2vP43FybLuh59zSRDVmNeCTdY6KZxrU&get=true&userAgent=true';
+  constructor(private ops){
+    this.ops = Object.assign({apiKey: "", fetchProxies: 200, threads: 10, debug: false}, ops)
+  }
+  url = `http://falcon.proxyrotator.com:51337/?apiKey=${this.ops.apiKey}&get=true&userAgent=true`;
 
   fetchNewList(){
-    console.log("fetching ProxyRotator");
-    return range(0, (this.fetchProxies / this.threads)).pipe(
+    if(this.ops.debug)
+      console.log("fetching ProxyRotator");
+    return range(0, (this.ops.fetchProxies / this.ops.threads)).pipe(
       concatMap(()=>{
-        return range(0, this.threads).pipe(
+        return range(0, this.ops.threads).pipe(
           mergeMap(()=>{
             return request(this.url)
               .then(obj=>{
@@ -21,24 +24,19 @@ export default class ProxyRotator {
               })
           }),
           tap(()=>{
-            if(this.debug)
-              console.log(`ProxyRotator fetched more"+ ${this.threads} of ${this.fetchProxies}`);
+            if(this.ops.debug)
+              console.log(`ProxyRotator fetched more"+ ${this.ops.threads} of ${this.ops.fetchProxies}`);
           }))
       }),
-      toArray(),
-      // map(items=>{
-      //   return items.filter((item: any)=>{
-      //     let hoursAgo = (item.lastChecked || Number.MAX_SAFE_INTEGER) / (60 * 60 * 1000);
-      //     return hoursAgo < 24;
-      //   })
-      // })
+      toArray()
     ).toPromise();
 
     function request(url){
 
       return rp({
-        url,
-        json: true}).then(resp=>{
+          url,
+          json: true})
+        .then(resp=>{
           if(resp.error)
             return request(url);
           return resp;

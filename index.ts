@@ -8,12 +8,12 @@ export class NodeProxyPools {
   private timeout = 5 * 1000;
   private proxyList: Promise<any[]>;
 
-  constructor(){
+  constructor(private options = {}){
     this.fetchAllProxies();
   }
 
   fetchAllProxies(){
-    let pr = new ProxyRotator();
+    let pr = new ProxyRotator(this.options['roOps']);
     this.proxyList = Promise.all([
       pr.fetchNewList()
     ]).then((lists: any[][])=>{
@@ -110,7 +110,6 @@ export class NodeProxyPools {
           tries++;
         }
 
-        console.log(this.position);
         this.position++;
         return item;
       })

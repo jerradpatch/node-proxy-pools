@@ -4,7 +4,7 @@ import * as chai from 'chai';
 import chaiHttp = require('chai-http');
 import 'mocha';
 import {NodeProxyPools} from "../index";
-import {concatMap, delay, map, mapTo, mergeMap, tap, toArray} from "rxjs/operators";
+import {concatMap, delay, map, mergeMap, tap, toArray} from "rxjs/operators";
 import {forkJoin, range} from "rxjs";
 import * as rp from 'request-promise';
 import {fromPromise} from "rxjs/internal-compatibility";
@@ -12,10 +12,12 @@ import {fromPromise} from "rxjs/internal-compatibility";
 chai.use(chaiHttp);
 const expect = chai.expect;
 
+let roApiKey = "";
+
 describe('All features should work', () => {
   describe('The proxies work as expected, actual', () => {
     it('when starting up it should return a list of proxies', (done) => {
-      let npl = new NodeProxyPools();
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
       npl.fetchAllProxies().then((list) => {
           expect(list.length).to.be.gt(0);
           done();
@@ -23,7 +25,7 @@ describe('All features should work', () => {
     })
 
     it('getReadyProxy should return a single proxy', (done) => {
-      let npl = new NodeProxyPools();
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
       npl['getReadyProxy']().then((prox) => {
         expect(prox).to.not.be.undefined;
         done();
@@ -31,7 +33,7 @@ describe('All features should work', () => {
     })
 
     it('getReadyProxy should return different proxy every time', (done) => {
-      let npl = new NodeProxyPools();
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
       let proms = [];
       for (let i = 0; i < 20; i++) {
         proms.push(npl['getReadyProxy']());
@@ -49,7 +51,7 @@ describe('All features should work', () => {
 
   describe('The request function', () => {
     it('requests should all be made with a different ip address', (done)=>{
-      let npl = new NodeProxyPools();
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
       let ipPRoms = [];
       for(let i = 0; i < 20; ++i) {
         ipPRoms.push(npl.request({
@@ -72,7 +74,7 @@ describe('All features should work', () => {
     });
 
     it('requests should not be made with a proxy surpassing the fail count', (done)=>{
-      let npl = new NodeProxyPools();
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
       let nonFailProxy;
       npl['$proxyList'] = npl['proxyList']
         .then((list: any[])=>{
@@ -81,7 +83,7 @@ describe('All features should work', () => {
           }
           nonFailProxy = list[list.length - 1];
           return list;
-        })
+        });
 
 
       npl.request({
@@ -103,7 +105,7 @@ describe('All features should work', () => {
       let testRang = 5;
       let throttle = 1 * 1000;
       let date: any = new Date();
-      let npl = new NodeProxyPools();
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
       npl['proxyList'].then(()=> {
         return forkJoin(
           range(0, testRang).pipe(
