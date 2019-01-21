@@ -52,7 +52,8 @@ export class NodeProxyPools {
           let code = err.error.code;
           if(code === 'ECONNRESET' ||
             code === 'ESOCKETTIMEDOUT' ||
-            code === 'EPROTO') {
+            code === 'EPROTO' ||
+            code === 'ECONNREFUSED') {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
           }
