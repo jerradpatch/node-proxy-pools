@@ -63,11 +63,11 @@ export class NodeProxyPools {
     function reqProm(ops){
       return new Promise((c, e)=>{
         let isTimedOut;
-        let prom = Promise.resolve();
+        let prom;
 
         let handle = setTimeout(()=> {
           isTimedOut = true;
-          prom['cancel'] && prom['cancel']();
+          prom && prom['cancel'] && prom['cancel']();
           e({
             error: {
               code: 'ESOCKETTIMEDOUT'
@@ -80,7 +80,8 @@ export class NodeProxyPools {
         }).catch(err=>{
           clearTimeout(handle);
           e(err)
-        })
+        });
+        return null;
       })
     }
   }
