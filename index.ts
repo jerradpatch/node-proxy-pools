@@ -76,10 +76,12 @@ export class NodeProxyPools {
 
         prom = rp(ops).then((res)=>{
           clearTimeout(handle);
-          c(res)
+          c(res);
+          return null;
         }).catch(err=>{
           clearTimeout(handle);
-          e(err)
+          e(err);
+          return null;
         });
         return null;
       })
