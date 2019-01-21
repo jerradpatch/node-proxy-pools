@@ -9,7 +9,7 @@ export class NodeProxyPools {
   private proxyList: Promise<any[]>;
 
   constructor(private options = {}){
-    this.fetchAllProxies();
+    this.proxyList = this.fetchAllProxies();
   }
 
   fetchAllProxies(){
@@ -22,7 +22,7 @@ export class NodeProxyPools {
         this.mergeList(currentList, list);
       });
       return Object.keys(currentList).map(key=> currentList[key]);
-    })
+    });
     return this.proxyList;
   }
 
