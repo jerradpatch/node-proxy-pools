@@ -8,14 +8,15 @@ export class NodeProxyPools {
   private timeout = 5 * 1000;
   private proxyList: Promise<any[]>;
 
+  pr = new ProxyRotator(this.options['roOps']);
+
   constructor(private options = {}){
     this.proxyList = this.fetchAllProxies();
   }
 
   fetchAllProxies(){
-    let pr = new ProxyRotator(this.options['roOps']);
     this.proxyList = Promise.all([
-      pr.fetchNewList()
+      this.pr.fetchNewList()
     ]).then((lists: any[][])=>{
       let currentList = {};
       lists.forEach(list=>{
@@ -53,7 +54,13 @@ export class NodeProxyPools {
           if(code === 'ECONNRESET' ||
             code === 'ESOCKETTIMEDOUT' ||
             code === 'EPROTO' ||
-            code === 'ECONNREFUSED') {
+            code === 'ECONNREFUSED' ||
+            code === 'HPE_INVALID_CONSTANT') {
+            (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+            return this.request(options);
+          } else if(err.statusCode === 403 && (
+            err.error.indexOf('https://block.opendns.com/') !== -1 ||
+            err.error.indexOf('This site has been blocked by the network administrator.') !== -1)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
           }
@@ -96,8 +103,6 @@ export class NodeProxyPools {
           this.position = 0;
 
         let item = pl[this.position];
-        if(!item)
-          debugger;
 
         let tries = 0;
         while((item.failCount || 0) > this.failCountLimit) {

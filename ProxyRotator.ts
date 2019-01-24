@@ -13,6 +13,7 @@ export default class ProxyRotator {
   fetchNewList(){
     if(this.ops.debug)
       console.log("fetching ProxyRotator");
+
     return range(0, (this.ops.fetchProxies / this.ops.threads)).pipe(
       concatMap(()=>{
         return range(0, this.ops.threads).pipe(
@@ -40,7 +41,11 @@ export default class ProxyRotator {
           if(resp.error)
             return request(url);
           return resp;
-      })
+        }).catch(err=>{
+          if(err.statusCode === 500)
+            return request(url);
+          throw err;
+        })
     }
   }
 }

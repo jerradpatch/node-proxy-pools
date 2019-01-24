@@ -12,12 +12,12 @@ import {fromPromise} from "rxjs/internal-compatibility";
 chai.use(chaiHttp);
 const expect = chai.expect;
 
-let roApiKey = "";
+let roApiKey = "B2vP43FybLuh59zSRDVmNeCTdY6KZxrU";
 
 describe('All features should work', () => {
   describe('The proxies work as expected, actual', () => {
     it('when starting up it should return a list of proxies', (done) => {
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true}});
       npl.fetchAllProxies().then((list) => {
           expect(list.length).to.be.gt(0);
           done();
