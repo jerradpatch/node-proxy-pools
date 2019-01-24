@@ -12,7 +12,7 @@ import {fromPromise} from "rxjs/internal-compatibility";
 chai.use(chaiHttp);
 const expect = chai.expect;
 
-let roApiKey = "B2vP43FybLuh59zSRDVmNeCTdY6KZxrU";
+let roApiKey = "";
 
 describe('All features should work', () => {
   describe('The proxies work as expected, actual', () => {
