@@ -1,7 +1,6 @@
-
-import * as rp from 'request-promise'
 import {range} from "rxjs";
 import {concatMap, mergeMap, tap, toArray} from "rxjs/operators";
+var rp = require('request-promise');
 
 export default class ProxyRotator {
 

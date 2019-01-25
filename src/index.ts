@@ -1,5 +1,5 @@
 
-import * as rp from 'request-promise';
+var rp = require('request-promise');
 import ProxyRotator from './ProxyRotator';
 
 export class NodeProxyPools {
@@ -36,6 +36,7 @@ export class NodeProxyPools {
   }
 
   request(options): Promise<any> {
+    let thiss = this;
     return this.getReadyProxy().then(proxy=> {
 
       let ops = Object.assign(options, {
@@ -50,6 +51,8 @@ export class NodeProxyPools {
 
       return reqProm.call(this, ops)
         .catch((err) => {
+          if(!err.error)
+            debugger;
           let code = err.error.code;
           if(code === 'ECONNRESET' ||
             code === 'ESOCKETTIMEDOUT' ||
@@ -80,7 +83,7 @@ export class NodeProxyPools {
             error: {
               code: 'ESOCKETTIMEDOUT'
           }})
-        }, this.timeout);
+        }, thiss['timeout']);
 
         prom = rp(ops).then((res)=>{
           clearTimeout(handle);

@@ -3,7 +3,7 @@
 import * as chai from 'chai';
 import chaiHttp = require('chai-http');
 import 'mocha';
-import {NodeProxyPools} from "../index";
+import {NodeProxyPools} from "../src/index";
 import {concatMap, delay, map, mergeMap, tap, toArray} from "rxjs/operators";
 import {forkJoin, range} from "rxjs";
 import * as rp from 'request-promise';
@@ -12,7 +12,7 @@ import {fromPromise} from "rxjs/internal-compatibility";
 chai.use(chaiHttp);
 const expect = chai.expect;
 
-let roApiKey = "";
+let roApiKey = "B2vP43FybLuh59zSRDVmNeCTdY6KZxrU";
 
 describe('All features should work', () => {
   describe('The proxies work as expected, actual', () => {
@@ -34,7 +34,7 @@ describe('All features should work', () => {
 
     it('getReadyProxy should return different proxy every time', (done) => {
       let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
-      let proms = [];
+      let proms: any[] = [];
       for (let i = 0; i < 20; i++) {
         proms.push(npl['getReadyProxy']());
       }
@@ -52,7 +52,7 @@ describe('All features should work', () => {
   describe('The request function', () => {
     it('requests should all be made with a different ip address', (done)=>{
       let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
-      let ipPRoms = [];
+      let ipPRoms: any[] = [];
       for(let i = 0; i < 20; ++i) {
         ipPRoms.push(npl.request({
           uri: 'https://www.google.com',
