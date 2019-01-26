@@ -26,18 +26,14 @@ var ProxyRotator = /** @class */ (function () {
             }));
         }), operators_1.toArray()).toPromise();
         function request(url) {
-            return rp({
+            return fromProrp({
                 url: url,
                 json: true
             })
-                .then(function (resp) {
+            .then(function (resp) {
                 if (resp.error)
                     return request(url);
                 return resp;
-            }).catch(function (err) {
-                if (err.statusCode === 500)
-                    return request(url);
-                throw err;
             });
         }
     };

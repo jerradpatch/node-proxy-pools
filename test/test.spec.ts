@@ -12,7 +12,7 @@ import {fromPromise} from "rxjs/internal-compatibility";
 chai.use(chaiHttp);
 const expect = chai.expect;
 
-let roApiKey = "";
+let roApiKey = "B2vP43FybLuh59zSRDVmNeCTdY6KZxrU";
 
 describe('All features should work', () => {
   describe('The proxies work as expected, actual', () => {
@@ -22,6 +22,48 @@ describe('All features should work', () => {
           expect(list.length).to.be.gt(0);
           done();
         })
+    })
+
+    it('when all proxies have been invalidated new proxies should be fetched', function(done) {
+      this.timeout(30 * 1000)
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true}});
+
+      npl['proxyList'].then((list)=>{
+        invalidateAllProxies(list, npl['failCountLimit']);
+
+        range(0, 10).pipe(
+          mergeMap(()=>{
+            //request and invalidate
+            return npl['proxyList'].then((list)=>{
+
+              invalidateAllProxies(list, npl['failCountLimit']);
+
+              return npl.request({
+                  gzip: true,
+                  method: 'GET',
+                  uri: 'https://www.google.com',
+                  timeout: 30 * 1000,
+                  maxRedirects: '10',
+                  followRedirect: true,
+                  rejectUnauthorized: false,
+                  insecure: true,
+                  headers: {
+                    'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/71.0.3578.98 Chrome/71.0.3578.98 Safari/537.36'
+                  }
+                })
+              })
+          }),
+          toArray())
+          .subscribe(()=>{
+            done();
+          });
+      })
+
+      function invalidateAllProxies(proxyList, limit){
+        proxyList.forEach(proxy=>{
+          proxy.failCount = limit + 1;
+        })
+      }
     })
 
     it('getReadyProxy should return a single proxy', (done) => {

@@ -31,6 +31,7 @@ export default class ProxyRotator {
       toArray()
     ).toPromise();
 
+    let retryCount = 0;
     function request(url){
 
       return rp({
@@ -40,10 +41,11 @@ export default class ProxyRotator {
           if(resp.error)
             return request(url);
           return resp;
-        }).catch(err=>{
-          if(err.statusCode === 500)
+        })
+        .catch(e=>{
+          if(retryCount < 10)
             return request(url);
-          throw err;
+          throw e;
         })
     }
   }
