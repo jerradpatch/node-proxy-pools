@@ -25,15 +25,21 @@ var ProxyRotator = /** @class */ (function () {
                     console.log("ProxyRotator fetched more\"+ " + _this.ops.threads + " of " + _this.ops.fetchProxies);
             }));
         }), operators_1.toArray()).toPromise();
+        var retryCount = 0;
         function request(url) {
-            return fromProrp({
+            return rp({
                 url: url,
                 json: true
             })
-            .then(function (resp) {
+                .then(function (resp) {
                 if (resp.error)
                     return request(url);
                 return resp;
+            })
+                .catch(function (e) {
+                if (retryCount < 10)
+                    return request(url);
+                throw e;
             });
         }
     };
