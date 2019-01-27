@@ -7,7 +7,14 @@ var rp = require('request-promise');
 var ProxyRotator_1 = __importDefault(require("./ProxyRotator"));
 var NodeProxyPools = /** @class */ (function () {
     function NodeProxyPools(options) {
-        if (options === void 0) { options = {}; }
+        if (options === void 0) { options = {
+            roOps: {
+                apiKey: ""
+            },
+            failFn: function (inp) { return false; },
+            //depends on options passed to request function
+            passFn: function (resp) { return false; }
+        }; }
         this.options = options;
         this.failCountLimit = 5;
         this.timeout = 5 * 1000;
@@ -49,9 +56,14 @@ var NodeProxyPools = /** @class */ (function () {
                 }
             });
             return reqProm.call(_this, ops)
+                .then(function (resp) {
+                if (_this.options.passFn && !_this.options.passFn(resp)) {
+                    (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+                    return _this.request(options);
+                }
+                return resp;
+            })
                 .catch(function (err) {
-                if (!err.error)
-                    debugger;
                 var code = err.error.code;
                 if (code === 'ECONNRESET' ||
                     code === 'ESOCKETTIMEDOUT' ||
@@ -63,6 +75,10 @@ var NodeProxyPools = /** @class */ (function () {
                 }
                 else if (err.statusCode === 403 && (err.error.indexOf('https://block.opendns.com/') !== -1 ||
                     err.error.indexOf('This site has been blocked by the network administrator.') !== -1)) {
+                    (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+                    return _this.request(options);
+                }
+                else if (_this.options.failFn && _this.options.failFn(err)) {
                     (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
                     return _this.request(options);
                 }

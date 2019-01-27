@@ -6,7 +6,7 @@ import 'mocha';
 import {NodeProxyPools} from "../src/index";
 import {concatMap, delay, map, mergeMap, tap, toArray} from "rxjs/operators";
 import {forkJoin, range} from "rxjs";
-import * as rp from 'request-promise';
+var rp = require('request-promise');
 import {fromPromise} from "rxjs/internal-compatibility";
 
 chai.use(chaiHttp);
@@ -137,6 +137,50 @@ describe('All features should work', () => {
         expect(+nonFailProxy.port).to.equal(port);
         expect(nonFailProxy.proto+":").to.equal(proto);
 
+        done();
+      })
+    })
+
+    it('if failing the passFn then the request should be tried again', (done)=>{
+      let timesPassFnCalled = 0;
+
+      let npl = new NodeProxyPools({
+        roOps:{
+          apiKey: roApiKey
+        },
+        passFn(resp){
+          timesPassFnCalled++;
+          return timesPassFnCalled > 2
+        }});
+
+      npl.request({
+        uri: 'https://www.google.com',
+        resolveWithFullResponse: true
+      }).then(resp=>{
+        expect(timesPassFnCalled).to.be.gt(1);
+        done();
+      })
+    })
+
+    it('if the failFn returns true then the request should be tried again', (done)=>{
+      let timesFnCalled = 0;
+
+      let npl = new NodeProxyPools({
+        roOps:{
+          apiKey: roApiKey
+        },
+        failFn(resp){
+          timesFnCalled++;
+          return timesFnCalled < 2
+        }});
+
+      npl.request({
+        uri: 'falseProto://www.falsePlace123$$.com',
+        resolveWithFullResponse: true
+      }).then(resp=>{
+        throw new Error('a response should not have been delivered')
+      }).catch(e=>{
+        expect(timesFnCalled).to.be.gt(1);
         done();
       })
     })

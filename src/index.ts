@@ -10,7 +10,21 @@ export class NodeProxyPools {
 
   pr = new ProxyRotator(this.options['roOps']);
 
-  constructor(private options = {}){
+  constructor(private options: {
+    roOps: {
+      apiKey: string,
+      debug?: boolean
+    }
+    failFn?: (inp: any)=>boolean,
+    passFn?: (inp: any)=>boolean
+  } = {
+    roOps: {
+      apiKey: ""
+    },
+    failFn: (inp)=>false,
+    //depends on options passed to request function
+    passFn: (resp)=>false
+  }){
     this.proxyList = this.fetchAllProxies();
   }
 
@@ -50,9 +64,14 @@ export class NodeProxyPools {
       });
 
       return reqProm.call(this, ops)
+        .then(resp=>{
+          if(this.options.passFn && !this.options.passFn(resp)) {
+            (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+            return this.request(options);
+          }
+          return resp;
+        })
         .catch((err) => {
-          if(!err.error)
-            debugger;
           let code = err.error.code;
           if(code === 'ECONNRESET' ||
             code === 'ESOCKETTIMEDOUT' ||
@@ -61,9 +80,14 @@ export class NodeProxyPools {
             code === 'HPE_INVALID_CONSTANT') {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
+
           } else if(err.statusCode === 403 && (
             err.error.indexOf('https://block.opendns.com/') !== -1 ||
             err.error.indexOf('This site has been blocked by the network administrator.') !== -1)) {
+            (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+            return this.request(options);
+
+          } else if(this.options.failFn && this.options.failFn(err)){
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
           }
