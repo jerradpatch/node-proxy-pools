@@ -162,6 +162,29 @@ describe('All features should work', () => {
       })
     })
 
+    it('if failing the passFn from the request then the request should be tried again', (done)=>{
+      let timesPassFnCalled = 0;
+
+      let npl = new NodeProxyPools({
+        roOps:{
+          apiKey: roApiKey
+        }});
+
+      npl.request({
+        uri: 'https://www.google.com',
+        resolveWithFullResponse: true,
+        nppOps: {
+          passFn(resp){
+            timesPassFnCalled++;
+            return timesPassFnCalled > 2
+          }
+        }
+      }).then(resp=>{
+        expect(timesPassFnCalled).to.be.gt(1);
+        done();
+      })
+    })
+
     it('if the failFn returns true then the request should be tried again', (done)=>{
       let timesFnCalled = 0;
 
@@ -177,6 +200,31 @@ describe('All features should work', () => {
       npl.request({
         uri: 'falseProto://www.falsePlace123$$.com',
         resolveWithFullResponse: true
+      }).then(resp=>{
+        throw new Error('a response should not have been delivered')
+      }).catch(e=>{
+        expect(timesFnCalled).to.be.gt(1);
+        done();
+      })
+    })
+
+    it('if the failFn returns on the request true then the request should be tried again', (done)=>{
+      let timesFnCalled = 0;
+
+      let npl = new NodeProxyPools({
+        roOps:{
+          apiKey: roApiKey
+        }});
+
+      npl.request({
+        uri: 'falseProto://www.falsePlace123$$.com',
+        resolveWithFullResponse: true,
+        nppOps:{
+          failFn(resp){
+            timesFnCalled++;
+            return timesFnCalled < 2
+          }
+        }
       }).then(resp=>{
         throw new Error('a response should not have been delivered')
       }).catch(e=>{

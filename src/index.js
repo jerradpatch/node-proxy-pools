@@ -61,6 +61,10 @@ var NodeProxyPools = /** @class */ (function () {
                     (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
                     return _this.request(options);
                 }
+                else if (ops.nppOps && ops.nppOps.passFn && !ops.nppOps.passFn(resp)) {
+                    (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+                    return _this.request(options);
+                }
                 return resp;
             })
                 .catch(function (err) {
@@ -79,6 +83,10 @@ var NodeProxyPools = /** @class */ (function () {
                     return _this.request(options);
                 }
                 else if (_this.options.failFn && _this.options.failFn(err)) {
+                    (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+                    return _this.request(options);
+                }
+                else if (ops.nppOps && ops.nppOps.failFn && ops.nppOps.failFn(err)) {
                     (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
                     return _this.request(options);
                 }

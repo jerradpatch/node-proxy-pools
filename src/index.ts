@@ -68,6 +68,10 @@ export class NodeProxyPools {
           if(this.options.passFn && !this.options.passFn(resp)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
+
+          } else if(ops.nppOps && ops.nppOps.passFn && !ops.nppOps.passFn(resp)){
+            (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+            return this.request(options);
           }
           return resp;
         })
@@ -90,7 +94,12 @@ export class NodeProxyPools {
           } else if(this.options.failFn && this.options.failFn(err)){
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
+
+          } else if(ops.nppOps && ops.nppOps.failFn && ops.nppOps.failFn(err)){
+            (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+            return this.request(options);
           }
+
           throw err;
         })
       })
