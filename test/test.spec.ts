@@ -14,6 +14,7 @@ chai.use(chaiHttp);
 const expect = chai.expect;
 
 let roApiKey = "B2vP43FybLuh59zSRDVmNeCTdY6KZxrU";
+let uri = 'https://www.google.com';
 
 describe('All features should work', () => {
 
@@ -60,7 +61,7 @@ describe('All features should work', () => {
               return npl.request({
                   gzip: true,
                   method: 'GET',
-                  uri: 'https://www.google.com',
+                  uri,
                   timeout: 30 * 1000,
                   maxRedirects: '10',
                   followRedirect: true,
@@ -116,7 +117,7 @@ describe('All features should work', () => {
       let ipPRoms: any[] = [];
       for(let i = 0; i < 20; ++i) {
         ipPRoms.push(npl.request({
-          uri: 'https://www.google.com',
+          uri,
           resolveWithFullResponse: true
         }).then(resp => {
           return resp.request.proxy.href;
@@ -150,7 +151,7 @@ describe('All features should work', () => {
     //
     //
     //   npl.request({
-    //     uri: 'https://www.google.com',
+    //     uri,
     //     resolveWithFullResponse: true
     //   }).then(resp => {
     //     let port = +resp.request.proxy.port;
@@ -175,7 +176,7 @@ describe('All features should work', () => {
         }});
 
       npl.request({
-        uri: 'https://www.google.com',
+        uri,
         resolveWithFullResponse: true
       }).then(resp=>{
         expect(timesPassFnCalled).to.be.gt(1);
@@ -192,7 +193,7 @@ describe('All features should work', () => {
         }});
 
       npl.request({
-        uri: 'https://www.google.com',
+        uri,
         resolveWithFullResponse: true,
         nppOps: {
           passFn(resp){
@@ -266,7 +267,7 @@ describe('All features should work', () => {
           range(0, testRang).pipe(
             mergeMap(() => {
               return npl.request({
-                url: 'https://www.google.com'
+                uri
               })
             }),
             toArray(),
@@ -277,7 +278,7 @@ describe('All features should work', () => {
           range(0, testRang).pipe(
             concatMap((num) => {
               return fromPromise(rp({
-                url: 'https://www.google.com'
+                uri
               }).then(res=>{
                 console.log('completed', num);
                 return res;

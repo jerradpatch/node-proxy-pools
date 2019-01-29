@@ -11,6 +11,7 @@ var ProxyRotator = /** @class */ (function () {
     }
     ProxyRotator.prototype.fetchNewList = function () {
         var _this = this;
+        var retryCount = 0;
         if (this.ops.debug)
             console.log("fetching ProxyRotator");
         return rxjs_1.range(0, (this.ops.fetchProxies / this.ops.threads)).pipe(operators_1.concatMap(function () {
@@ -25,7 +26,6 @@ var ProxyRotator = /** @class */ (function () {
                     console.log("ProxyRotator fetched more\"+ " + _this.ops.threads + " of " + _this.ops.fetchProxies);
             }));
         }), operators_1.toArray()).toPromise();
-        var retryCount = 0;
         function request(url) {
             return rp({
                 url: url,
@@ -37,8 +37,16 @@ var ProxyRotator = /** @class */ (function () {
                 return resp;
             })
                 .catch(function (e) {
-                if (retryCount < 10)
-                    return request(url);
+                if (retryCount < 10) {
+                    retryCount++;
+                    return new Promise(function (c, e) {
+                        setTimeout(function () {
+                            return request(url)
+                                .then(c)
+                                .catch(e);
+                        }, 1000);
+                    });
+                }
                 throw e;
             });
         }

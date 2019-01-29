@@ -44,9 +44,11 @@ var NodeProxyPools = /** @class */ (function () {
     };
     NodeProxyPools.prototype.request = function (options) {
         var _this = this;
+        if (typeof options !== 'object' || options === null)
+            throw new Error('the input to the request function should have been an object type');
         var thiss = this;
         return this.getReadyProxy().then(function (proxy) {
-            var ops = Object.assign(options, {
+            var ops = Object.assign({}, options, {
                 proxy: proxy.proto + '://' + proxy.ip + ":" + proxy.port,
                 insecure: true,
                 rejectUnauthorized: false,
@@ -95,10 +97,8 @@ var NodeProxyPools = /** @class */ (function () {
         });
         function reqProm(ops) {
             return new Promise(function (c, e) {
-                var isTimedOut;
                 var prom;
                 var handle = setTimeout(function () {
-                    isTimedOut = true;
                     prom && prom['cancel'] && prom['cancel']();
                     e({
                         error: {
@@ -109,11 +109,9 @@ var NodeProxyPools = /** @class */ (function () {
                 prom = rp(ops).then(function (res) {
                     clearTimeout(handle);
                     c(res);
-                    return null;
                 }).catch(function (err) {
                     clearTimeout(handle);
                     e(err);
-                    return null;
                 });
                 return null;
             });

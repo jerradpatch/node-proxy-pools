@@ -50,7 +50,7 @@ export class NodeProxyPools {
   }
 
   request(options): Promise<any> {
-    if(typeof options === 'object' && options !== null)
+    if (typeof options !== 'object' || options === null)
       throw new Error('the input to the request function should have been an object type');
 
     let thiss = this;
