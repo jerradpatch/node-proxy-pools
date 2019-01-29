@@ -50,10 +50,13 @@ export class NodeProxyPools {
   }
 
   request(options): Promise<any> {
+    if(typeof options === 'object' && options !== null)
+      throw new Error('the input to the request function should have been an object type');
+
     let thiss = this;
     return this.getReadyProxy().then(proxy=> {
 
-      let ops = Object.assign(options, {
+      let ops = Object.assign({}, options, {
         proxy: proxy.proto+ '://' + proxy.ip + ":" + proxy.port,
         insecure: true,
         rejectUnauthorized: false,
@@ -106,11 +109,9 @@ export class NodeProxyPools {
 
     function reqProm(ops){
       return new Promise((c, e)=>{
-        let isTimedOut;
         let prom;
 
         let handle = setTimeout(()=> {
-          isTimedOut = true;
           prom && prom['cancel'] && prom['cancel']();
           e({
             error: {
@@ -121,11 +122,9 @@ export class NodeProxyPools {
         prom = rp(ops).then((res)=>{
           clearTimeout(handle);
           c(res);
-          return null;
         }).catch(err=>{
           clearTimeout(handle);
           e(err);
-          return null;
         });
         return null;
       })
