@@ -8,6 +8,7 @@ import {concatMap, delay, map, mergeMap, tap, toArray} from "rxjs/operators";
 import {forkJoin, range} from "rxjs";
 var rp = require('request-promise');
 import {fromPromise} from "rxjs/internal-compatibility";
+import ProxyRotator from "../src/ProxyRotator";
 
 chai.use(chaiHttp);
 const expect = chai.expect;
@@ -15,6 +16,24 @@ const expect = chai.expect;
 let roApiKey = "B2vP43FybLuh59zSRDVmNeCTdY6KZxrU";
 
 describe('All features should work', () => {
+
+  describe('ProxyRotator tests', () => {
+    it('fetchNewList should return a new list every time', function(done) {
+      this.timeout(30 * 1000);
+
+      let pr = new ProxyRotator({apiKey: roApiKey, debug: true});
+      range(0 ,10).pipe(
+        concatMap(()=> {
+          return pr.fetchNewList()
+        }),
+        toArray())
+        .subscribe(lists=>{
+          expect(lists).to.have.length(10);
+          done();
+        })
+    })
+  });
+
   describe('The proxies work as expected, actual', () => {
     it('when starting up it should return a list of proxies', (done) => {
       let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true}});

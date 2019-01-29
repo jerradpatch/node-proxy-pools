@@ -10,6 +10,8 @@ export default class ProxyRotator {
   url = `http://falcon.proxyrotator.com:51337/?apiKey=${this.ops.apiKey}&get=true&userAgent=true`;
 
   fetchNewList(){
+    let retryCount = 0;
+
     if(this.ops.debug)
       console.log("fetching ProxyRotator");
 
@@ -31,7 +33,6 @@ export default class ProxyRotator {
       toArray()
     ).toPromise();
 
-    let retryCount = 0;
     function request(url){
 
       return rp({
