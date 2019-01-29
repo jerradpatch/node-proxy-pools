@@ -44,8 +44,16 @@ export default class ProxyRotator {
           return resp;
         })
         .catch(e=>{
-          if(retryCount < 10)
-            return request(url);
+          if(retryCount < 10) {
+            retryCount++;
+            return new Promise((c,e)=> {
+              setTimeout(()=> {
+                return request(url)
+                  .then(c)
+                  .catch(e)
+              }, 1000);
+            });
+          }
           throw e;
         })
     }
