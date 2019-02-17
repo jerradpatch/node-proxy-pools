@@ -21,7 +21,9 @@ var ProxyRotator = /** @class */ (function () {
                     obj.proto = "http";
                     return obj;
                 });
-            }), operators_1.tap(function () {
+            }), 
+            //retry the failed sequence after a second
+            operators_1.retryWhen(function (errors) { return errors.pipe(operators_1.delay(1000), operators_1.take(10)); }), operators_1.tap(function () {
                 if (_this.ops.debug)
                     console.log("ProxyRotator fetched more\"+ " + _this.ops.threads + " of " + _this.ops.fetchProxies);
             }));

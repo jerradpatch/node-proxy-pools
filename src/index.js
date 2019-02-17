@@ -18,22 +18,29 @@ var NodeProxyPools = /** @class */ (function () {
         this.options = options;
         this.failCountLimit = 5;
         this.timeout = 5 * 1000;
+        this.proxyList = Promise.resolve([]);
         this.pr = new ProxyRotator_1.default(this.options['roOps']);
         this.position = 0;
-        this.proxyList = this.fetchAllProxies();
+        this.fetchAllProxies();
     }
     NodeProxyPools.prototype.fetchAllProxies = function () {
         var _this = this;
-        this.proxyList = Promise.all([
-            this.pr.fetchNewList()
-        ]).then(function (lists) {
-            var currentList = {};
-            lists.forEach(function (list) {
-                _this.mergeList(currentList, list);
+        if (this.fetching)
+            return this.proxyList;
+        else {
+            this.fetching = true;
+            this.proxyList = Promise.all([
+                this.pr.fetchNewList()
+            ]).then(function (lists) {
+                var currentList = {};
+                lists.forEach(function (list) {
+                    _this.mergeList(currentList, list);
+                });
+                _this.fetching = false;
+                return Object.keys(currentList).map(function (key) { return currentList[key]; });
             });
-            return Object.keys(currentList).map(function (key) { return currentList[key]; });
-        });
-        return this.proxyList;
+            return this.proxyList;
+        }
     };
     NodeProxyPools.prototype.mergeList = function (a, b) {
         b.forEach(function (bItem) {

@@ -4,7 +4,7 @@ import * as chai from 'chai';
 import chaiHttp = require('chai-http');
 import 'mocha';
 import {NodeProxyPools} from "../src/index";
-import {concatMap, delay, map, mergeMap, tap, toArray} from "rxjs/operators";
+import {concatMap, delay, map, mergeMap, take, tap, toArray} from "rxjs/operators";
 import {forkJoin, range} from "rxjs";
 var rp = require('request-promise');
 import {fromPromise} from "rxjs/internal-compatibility";
@@ -27,7 +27,8 @@ describe('All features should work', () => {
         concatMap(()=> {
           return pr.fetchNewList()
         }),
-        toArray())
+        toArray(),
+        take(1))
         .subscribe(lists=>{
           expect(lists).to.have.length(10);
           done();
@@ -39,9 +40,9 @@ describe('All features should work', () => {
     it('when starting up it should return a list of proxies', (done) => {
       let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true}});
       npl.fetchAllProxies().then((list) => {
-          expect(list.length).to.be.gt(0);
-          done();
-        })
+        expect(list.length).to.be.gt(0);
+        done();
+      })
     })
 
     it('when all proxies have been invalidated new proxies should be fetched', function(done) {
@@ -52,7 +53,7 @@ describe('All features should work', () => {
         invalidateAllProxies(list, npl['failCountLimit']);
 
         range(0, 10).pipe(
-          mergeMap(()=>{
+          concatMap(()=>{
             //request and invalidate
             return npl['proxyList'].then((list)=>{
 
@@ -223,7 +224,7 @@ describe('All features should work', () => {
         uri: 'falseProto://www.falsePlace123$$.com',
         resolveWithFullResponse: true
       }).then(resp=>{
-        throw new Error('a response should not have been delivered')
+        done(new Error('a response should not have been delivered'));
       }).catch(e=>{
         expect(timesFnCalled).to.be.gt(1);
         done();
@@ -248,7 +249,7 @@ describe('All features should work', () => {
           }
         }
       }).then(resp=>{
-        throw new Error('a response should not have been delivered')
+        done(new Error('a response should not have been delivered'));
       }).catch(e=>{
         expect(timesFnCalled).to.be.gt(1);
         done();

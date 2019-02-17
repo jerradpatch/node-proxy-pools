@@ -6,7 +6,7 @@ export class NodeProxyPools {
 
   private failCountLimit = 5;
   private timeout = 5 * 1000;
-  private proxyList: Promise<any[]>;
+  private proxyList: Promise<any[]> = Promise.resolve([]);
 
   pr = new ProxyRotator(this.options['roOps']);
 
@@ -25,20 +25,29 @@ export class NodeProxyPools {
     //depends on options passed to request function
     passFn: (resp)=>false
   }){
-    this.proxyList = this.fetchAllProxies();
+    this.fetchAllProxies();
   }
 
+  private fetching;
+
   fetchAllProxies(){
-    this.proxyList = Promise.all([
-      this.pr.fetchNewList()
-    ]).then((lists: any[][])=>{
-      let currentList = {};
-      lists.forEach(list=>{
-        this.mergeList(currentList, list);
+    if(this.fetching)
+      return this.proxyList;
+    else {
+      this.fetching = true;
+      this.proxyList = Promise.all([
+        this.pr.fetchNewList()
+      ]).then((lists: any[][]) => {
+        let currentList = {};
+        lists.forEach(list => {
+          this.mergeList(currentList, list);
+        });
+        this.fetching = false;
+        return Object.keys(currentList).map(key => currentList[key]);
       });
-      return Object.keys(currentList).map(key=> currentList[key]);
-    });
-    return this.proxyList;
+
+      return this.proxyList;
+    }
   }
 
   private mergeList(a: {[protIpPort: string]: any}, b: {proto: string, ip: string, port: number}[]) {

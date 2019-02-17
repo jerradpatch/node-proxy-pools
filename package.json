@@ -4,6 +4,7 @@
   "description": "make proxy requests always work",
   "main": "src/index.js",
   "scripts": {
+    "pretest": "tsc",
     "test": "mocha -r ts-node/register test/**/*.spec.ts"
   },
   "repository": {

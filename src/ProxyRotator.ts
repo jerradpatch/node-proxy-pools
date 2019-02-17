@@ -1,5 +1,5 @@
 import {range} from "rxjs";
-import {concatMap, mergeMap, tap, toArray} from "rxjs/operators";
+import {concatMap, delay, mergeMap, retry, retryWhen, take, tap, toArray} from "rxjs/operators";
 var rp = require('request-promise');
 
 export default class ProxyRotator {
@@ -25,6 +25,10 @@ export default class ProxyRotator {
                 return obj;
               })
           }),
+          //retry the failed sequence after a second
+          retryWhen(errors=> errors.pipe(
+            delay(1000),
+            take(10))),
           tap(()=>{
             if(this.ops.debug)
               console.log(`ProxyRotator fetched more"+ ${this.ops.threads} of ${this.ops.fetchProxies}`);
