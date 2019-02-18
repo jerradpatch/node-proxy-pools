@@ -91,11 +91,11 @@ var NodeProxyPools = /** @class */ (function () {
                     (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
                     return _this.request(options);
                 }
-                else if (_this.options.failFn && _this.options.failFn(err)) {
+                else if (_this.options.failFn && !_this.options.failFn(err)) {
                     (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
                     return _this.request(options);
                 }
-                else if (ops.nppOps && ops.nppOps.failFn && ops.nppOps.failFn(err)) {
+                else if (ops.nppOps && ops.nppOps.failFn && !ops.nppOps.failFn(err)) {
                     (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
                     return _this.request(options);
                 }
