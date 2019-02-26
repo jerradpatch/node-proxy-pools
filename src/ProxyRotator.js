@@ -28,9 +28,14 @@ var ProxyRotator = /** @class */ (function () {
             //   take(10))),
             operators_1.tap(function () {
                 if (_this.ops.debug)
-                    console.log("ProxyRotator fetched more\"+ " + _this.ops.threads + " of " + _this.ops.fetchProxies);
-            }));
-        }), operators_1.toArray()).toPromise();
+                    console.log("ProxyRotator fetched 1 more of " + _this.ops.threads);
+            }), operators_1.toArray());
+        }), operators_1.tap(function () {
+            if (_this.ops.debug)
+                console.log("ProxyRotator fetched " + _this.ops.threads + " more of " + _this.ops.fetchProxies);
+        }), operators_1.toArray(), operators_1.map(function (twoDArr) {
+            return [].concat.apply([], twoDArr);
+        })).toPromise();
         function request(url) {
             return rp({
                 url: url,

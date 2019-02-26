@@ -1,6 +1,6 @@
 {
   "name": "node-proxy-pools",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "make proxy requests always work",
   "main": "src/index.js",
   "scripts": {
