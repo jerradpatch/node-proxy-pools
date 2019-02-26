@@ -48,6 +48,31 @@ describe('All features should work', () => {
       })
     })
 
+    it('when there is a large pool size there fetch rate should not be exceeded', (done) => {
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true, fetchProxies: 1000}});
+
+      range(0,10).pipe(
+        mergeMap(()=>npl.request({
+        gzip: true,
+        method: 'GET',
+        uri,
+        timeout: 30 * 1000,
+        maxRedirects: '10',
+        followRedirect: true,
+        rejectUnauthorized: false,
+        insecure: true,
+        headers: {
+          'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/71.0.3578.98 Chrome/71.0.3578.98 Safari/537.36'
+        }
+      })),
+      toArray())
+      .subscribe((arr)=>{
+        expect(arr).to.have.lengthOf(10);
+        done();
+      }, err=>
+        done(new Error(err)))
+    })
+
     it('when all proxies have been invalidated new proxies should be fetched', function(done) {
       this.timeout(30 * 1000)
       let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true, fetchProxies: 30}});
