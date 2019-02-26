@@ -9,11 +9,39 @@ for their service.
 
 ex:
 ```javascript
-let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
+//the passFn and failFn parameters are dependent to the options passed
+//to the request function (ie: whole response or just body or 
+// throw error when return status is not 200).
+let options = {
+  roOps: {
+    apiKey: roApiKey, //ket for their api
+    fetchProxies: 200 //size of proxy pool for this service, default 200
+  },
+  passFn(response){
+    //this function tests if the response is valid given the call "true pass"
+    //this is a global passFn for the instance
+    return true; //boolean
+  },
+  failFn(error){
+    //this function tests if the failure was an actual failure given the call
+    //this is a global failFn for the instance
+    return true; //boolean 
+  }
+}
+let npl = new NodeProxyPools(options);
 
+/*
+The request function is made with the "request-promise" package
+https://github.com/request/request-promise
+and any options for the package are also valid here in addition,
+pass and fail functions can optionally be added and have the same functionality as described above
+except it works on a per request basis.
+ */
 npl.request({
   uri: 'https://www.google.com',
-  resolveWithFullResponse: true
+  resolveWithFullResponse: true,
+  passFn(){return true;}, 
+  failFn(){return true;}
 }).then(resp => {
   //proxied response
 })
