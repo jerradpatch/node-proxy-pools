@@ -13,13 +13,15 @@ export class NodeProxyPools {
   constructor(private options: {
     roOps: {
       apiKey: string,
+      fetchProxies: number,
       debug?: boolean
     }
     failFn?: (inp: any)=>boolean,
     passFn?: (inp: any)=>boolean
   } = {
     roOps: {
-      apiKey: ""
+      apiKey: "",
+      fetchProxies: 200
     },
     failFn: (inp)=>false,
     //depends on options passed to request function
@@ -89,7 +91,15 @@ export class NodeProxyPools {
         })
         .catch((err) => {
           let code = err.error.code;
-          if(code === 'ECONNRESET' ||
+          if(this.options.failFn && !this.options.failFn(err)){
+            (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+            return this.request(options);
+
+          } else if(ops.nppOps && ops.nppOps.failFn && !ops.nppOps.failFn(err)){
+            (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+            return this.request(options);
+
+          } else if(code === 'ECONNRESET' ||
             code === 'ESOCKETTIMEDOUT' ||
             code === 'EPROTO' ||
             code === 'ECONNREFUSED' ||
@@ -103,13 +113,6 @@ export class NodeProxyPools {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
 
-          } else if(this.options.failFn && !this.options.failFn(err)){
-            (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
-            return this.request(options);
-
-          } else if(ops.nppOps && ops.nppOps.failFn && !ops.nppOps.failFn(err)){
-            (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
-            return this.request(options);
           }
 
           throw err;

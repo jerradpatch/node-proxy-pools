@@ -9,7 +9,8 @@ var NodeProxyPools = /** @class */ (function () {
     function NodeProxyPools(options) {
         if (options === void 0) { options = {
             roOps: {
-                apiKey: ""
+                apiKey: "",
+                fetchProxies: 200
             },
             failFn: function (inp) { return false; },
             //depends on options passed to request function
@@ -78,7 +79,15 @@ var NodeProxyPools = /** @class */ (function () {
             })
                 .catch(function (err) {
                 var code = err.error.code;
-                if (code === 'ECONNRESET' ||
+                if (_this.options.failFn && !_this.options.failFn(err)) {
+                    (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+                    return _this.request(options);
+                }
+                else if (ops.nppOps && ops.nppOps.failFn && !ops.nppOps.failFn(err)) {
+                    (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+                    return _this.request(options);
+                }
+                else if (code === 'ECONNRESET' ||
                     code === 'ESOCKETTIMEDOUT' ||
                     code === 'EPROTO' ||
                     code === 'ECONNREFUSED' ||
@@ -88,14 +97,6 @@ var NodeProxyPools = /** @class */ (function () {
                 }
                 else if (err.statusCode === 403 && (err.error.indexOf('https://block.opendns.com/') !== -1 ||
                     err.error.indexOf('This site has been blocked by the network administrator.') !== -1)) {
-                    (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
-                    return _this.request(options);
-                }
-                else if (_this.options.failFn && !_this.options.failFn(err)) {
-                    (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
-                    return _this.request(options);
-                }
-                else if (ops.nppOps && ops.nppOps.failFn && !ops.nppOps.failFn(err)) {
                     (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
                     return _this.request(options);
                 }

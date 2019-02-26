@@ -26,9 +26,9 @@ export default class ProxyRotator {
               })
           }),
           //retry the failed sequence after a second
-          retryWhen(errors=> errors.pipe(
-            delay(1000),
-            take(10))),
+          // retryWhen(errors=> errors.pipe(
+          //   delay(1000),
+          //   take(10))),
           tap(()=>{
             if(this.ops.debug)
               console.log(`ProxyRotator fetched more"+ ${this.ops.threads} of ${this.ops.fetchProxies}`);
@@ -42,11 +42,6 @@ export default class ProxyRotator {
       return rp({
           url,
           json: true})
-        .then(resp=>{
-          if(resp.error)
-            return request(url);
-          return resp;
-        })
         .catch(e=>{
           if(retryCount < 10) {
             retryCount++;
@@ -59,6 +54,15 @@ export default class ProxyRotator {
             });
           }
           throw e;
+        })
+        .then(resp=>{
+          if(resp.error) {
+            // if(resp.error === )
+            // return request(url);
+            console.error("Proxy","ProxyRotator", "error", resp.error);
+            throw new Error(resp.error);
+          }
+          return resp;
         })
     }
   }

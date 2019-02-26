@@ -9,11 +9,14 @@ import {forkJoin, range} from "rxjs";
 var rp = require('request-promise');
 import {fromPromise} from "rxjs/internal-compatibility";
 import ProxyRotator from "../src/ProxyRotator";
+import * as loadJsonFile from 'load-json-file';
 
 chai.use(chaiHttp);
 const expect = chai.expect;
 
-let roApiKey = "B2vP43FybLuh59zSRDVmNeCTdY6KZxrU";
+let confJson = loadJsonFile.sync('config.json') as any;
+let roApiKey = confJson.proxyRotatorApiKey;
+
 let uri = 'https://www.google.com';
 
 describe('All features should work', () => {
@@ -22,15 +25,15 @@ describe('All features should work', () => {
     it('fetchNewList should return a new list every time', function(done) {
       this.timeout(30 * 1000);
 
-      let pr = new ProxyRotator({apiKey: roApiKey, debug: true});
-      range(0 ,10).pipe(
+      let pr = new ProxyRotator({apiKey: roApiKey, debug: true, fetchProxies: 30});
+      range(0 ,3).pipe(
         concatMap(()=> {
           return pr.fetchNewList()
         }),
         toArray(),
         take(1))
         .subscribe(lists=>{
-          expect(lists).to.have.length(10);
+          expect(lists).to.have.length(3);
           done();
         })
     })
@@ -38,7 +41,7 @@ describe('All features should work', () => {
 
   describe('The proxies work as expected, actual', () => {
     it('when starting up it should return a list of proxies', (done) => {
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true}});
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true, fetchProxies: 30}});
       npl.fetchAllProxies().then((list) => {
         expect(list.length).to.be.gt(0);
         done();
@@ -47,12 +50,12 @@ describe('All features should work', () => {
 
     it('when all proxies have been invalidated new proxies should be fetched', function(done) {
       this.timeout(30 * 1000)
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true}});
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true, fetchProxies: 30}});
 
       npl['proxyList'].then((list)=>{
         invalidateAllProxies(list, npl['failCountLimit']);
 
-        range(0, 10).pipe(
+        range(0, 3).pipe(
           concatMap(()=>{
             //request and invalidate
             return npl['proxyList'].then((list)=>{
@@ -88,7 +91,7 @@ describe('All features should work', () => {
     })
 
     it('getReadyProxy should return a single proxy', (done) => {
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 30}});
       npl['getReadyProxy']().then((prox) => {
         expect(prox).to.not.be.undefined;
         done();
@@ -96,7 +99,7 @@ describe('All features should work', () => {
     })
 
     it('getReadyProxy should return different proxy every time', (done) => {
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 30}});
       let proms: any[] = [];
       for (let i = 0; i < 20; i++) {
         proms.push(npl['getReadyProxy']());
@@ -114,7 +117,7 @@ describe('All features should work', () => {
 
   describe('The request function', () => {
     it('requests should all be made with a different ip address', (done)=>{
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 100}});
       let ipPRoms: any[] = [];
       for(let i = 0; i < 20; ++i) {
         ipPRoms.push(npl.request({
@@ -169,7 +172,8 @@ describe('All features should work', () => {
 
       let npl = new NodeProxyPools({
         roOps:{
-          apiKey: roApiKey
+          apiKey: roApiKey,
+          fetchProxies: 30
         },
         passFn(resp){
           timesPassFnCalled++;
@@ -190,7 +194,8 @@ describe('All features should work', () => {
 
       let npl = new NodeProxyPools({
         roOps:{
-          apiKey: roApiKey
+          apiKey: roApiKey,
+          fetchProxies: 30
         }});
 
       npl.request({
@@ -213,11 +218,12 @@ describe('All features should work', () => {
 
       let npl = new NodeProxyPools({
         roOps:{
-          apiKey: roApiKey
+          apiKey: roApiKey,
+          fetchProxies: 30
         },
         failFn(resp){
           timesFnCalled++;
-          return timesFnCalled < 2
+          return timesFnCalled > 2
         }});
 
       npl.request({
@@ -236,7 +242,8 @@ describe('All features should work', () => {
 
       let npl = new NodeProxyPools({
         roOps:{
-          apiKey: roApiKey
+          apiKey: roApiKey,
+          fetchProxies: 30
         }});
 
       npl.request({
@@ -245,7 +252,7 @@ describe('All features should work', () => {
         nppOps:{
           failFn(resp){
             timesFnCalled++;
-            return timesFnCalled < 2
+            return timesFnCalled > 2
           }
         }
       }).then(resp=>{
@@ -262,7 +269,7 @@ describe('All features should work', () => {
       let testRang = 5;
       let throttle = 1 * 1000;
       let date: any = new Date();
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
+      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 30}});
       npl['proxyList'].then(()=> {
         return forkJoin(
           range(0, testRang).pipe(
