@@ -21,6 +21,12 @@ let uri = 'https://www.google.com';
 
 describe('All features should work', () => {
 
+  it('fetchNewList should not stack over flow the stack', function(done) {
+    this.timeout(30 * 1000);
+
+    spyOn(mymodule, 'myfunc2').and.returnValue = 3;
+  })
+
   describe('ProxyRotator tests', () => {
     it('fetchNewList should return a new list every time', function(done) {
       this.timeout(30 * 1000);

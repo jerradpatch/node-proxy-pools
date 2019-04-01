@@ -116,30 +116,33 @@ export class NodeProxyPools {
 
           throw err;
         })
-      })
+      });
+  }
 
-    function reqProm(ops){
-      return new Promise((c, e)=>{
-        let prom;
+  reqProm(ops){
+    return new Promise((c, e)=>{
+      let prom;
 
-        let handle = setTimeout(()=> {
-          prom && prom['cancel'] && prom['cancel']();
-          e({
-            error: {
-              code: 'ESOCKETTIMEDOUT'
+      let handle = setTimeout(()=> {
+        prom && prom['cancel'] && prom['cancel']();
+        e({
+          error: {
+            code: 'ESOCKETTIMEDOUT'
           }})
-        }, thiss['timeout']);
+      }, this['timeout']);
 
-        prom = rp(ops).then((res)=>{
+      try {
+        prom = rp(ops).then((res) => {
           clearTimeout(handle);
           c(res);
-        }).catch(err=>{
+        }).catch(err => {
           clearTimeout(handle);
           e(err);
         });
-        return null;
-      })
-    }
+      } catch (err) {
+        e(err);
+      }
+    })
   }
 
   position = 0;
