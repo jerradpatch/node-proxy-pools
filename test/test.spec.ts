@@ -21,11 +21,11 @@ let uri = 'https://www.google.com';
 
 describe('All features should work', () => {
 
-  it('fetchNewList should not stack over flow the stack', function(done) {
-    this.timeout(30 * 1000);
-
-    spyOn(mymodule, 'myfunc2').and.returnValue = 3;
-  })
+  // it('fetchNewList should not stack over flow the stack', function(done) {
+  //   this.timeout(30 * 1000);
+  //
+  //   spyOn(mymodule, 'myfunc2').and.returnValue = 3;
+  // })
 
   describe('ProxyRotator tests', () => {
     it('fetchNewList should return a new list every time', function(done) {
@@ -123,7 +123,7 @@ describe('All features should work', () => {
 
     it('getReadyProxy should return a single proxy', (done) => {
       let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 30}});
-      npl['getReadyProxy']().then((prox) => {
+      npl['getReadyProxy'](npl['proxyList']).then((prox) => {
         expect(prox).to.not.be.undefined;
         done();
       })
@@ -133,7 +133,7 @@ describe('All features should work', () => {
       let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 30}});
       let proms: any[] = [];
       for (let i = 0; i < 20; i++) {
-        proms.push(npl['getReadyProxy']());
+        proms.push(npl['getReadyProxy'](npl['proxyList']));
       }
       Promise.all(proms).then((proms) => {
         let distinct = proms.reduce((acc, c) => {
@@ -147,6 +147,24 @@ describe('All features should work', () => {
   })
 
   describe('The request function', () => {
+    // it('request should not be made until proxies are fetched', (done)=> {
+    //   let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 100}});
+    //
+    //   let ipPRoms = [];
+    //   for(let i = 0; i < 20; ++i) {
+    //     ipPRoms.push(npl['proxyList']().then(resp => {
+    //       return resp.request.proxy.href;
+    //     }));
+    //   }
+    //
+    //   Promise.all(ipPRoms).then(res=>{
+    //     res.reduce((ac, c)=>{
+    //       if(ac.length !== c.length)
+    //         done(new Error('the request did not wait'))
+    //     })
+    //   })
+    // })
+
     it('requests should all be made with a different ip address', (done)=>{
       let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 100}});
       let ipPRoms: any[] = [];
@@ -334,5 +352,23 @@ describe('All features should work', () => {
           })
         })
     }).timeout(30 * 1000)
-  })
+  });
+
+  //test recursion function, when error happens
+  // it('it should not run out of heap memory given infinite failures of proxy requests', (done)=> {
+  //   let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 200, debug: true}});
+  //   npl['reqProm'] = function(){ return Promise.reject({error: {code: 'ESOCKETTIMEDOUT'}})}
+  //
+  //   for(let i = 0 ; i < 300; i++)
+  //     npl.request({
+  //       uri,
+  //       resolveWithFullResponse: true
+  //     }).then(res=>{
+  //       debugger;
+  //     }).catch(e=>{
+  //       debugger;
+  //     })
+  // });
+
+  //test that an element fails after a given number of retries
 });

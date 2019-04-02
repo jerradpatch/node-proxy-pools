@@ -33,23 +33,16 @@ export class NodeProxyPools {
   private fetching;
 
   fetchAllProxies(){
-    if(this.fetching)
-      return this.proxyList;
-    else {
-      this.fetching = true;
-      this.proxyList = Promise.all([
-        this.pr.fetchNewList()
-      ]).then((lists: any[][]) => {
-        let currentList = {};
-        lists.forEach(list => {
-          this.mergeList(currentList, list);
-        });
-        this.fetching = false;
-        return Object.keys(currentList).map(key => currentList[key]);
+    this.proxyList = Promise.all([
+      this.pr.fetchNewList()
+    ]).then((lists: any[][]) => {
+      let currentList = {};
+      lists.forEach(list => {
+        this.mergeList(currentList, list);
       });
-
-      return this.proxyList;
-    }
+      return Object.keys(currentList).map(key => currentList[key]);
+    });
+    return this.proxyList;
   }
 
   private mergeList(a: {[protIpPort: string]: any}, b: {proto: string, ip: string, port: number}[]) {
@@ -65,7 +58,9 @@ export class NodeProxyPools {
       throw new Error('the input to the request function should have been an object type');
 
     let thiss = this;
-    return this.getReadyProxy().then(proxy=> {
+    return this.getReadyProxy(this.proxyList).then(proxy=> {
+
+      console.log('requesting');
 
       let ops = Object.assign({}, options, {
         proxy: proxy.proto+ '://' + proxy.ip + ":" + proxy.port,
@@ -77,13 +72,13 @@ export class NodeProxyPools {
         }
       });
 
-      return reqProm.call(this, ops)
+      return this.reqProm.call(this, ops)
         .then(resp=>{
           if(this.options.passFn && !this.options.passFn(resp)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
 
-          } else if(ops.nppOps && ops.nppOps.passFn && !ops.nppOps.passFn(resp)){
+          } else if(ops['nppOps'] && ops['nppOps'].passFn && !ops['nppOps'].passFn(resp)){
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
           }
@@ -109,7 +104,7 @@ export class NodeProxyPools {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
 
-          } else if(ops.nppOps && ops.nppOps.failFn && !ops.nppOps.failFn(err)){
+          } else if(ops['nppOps'] && ops['nppOps'].failFn && !ops['nppOps'].failFn(err)){
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
           }
@@ -119,7 +114,7 @@ export class NodeProxyPools {
       });
   }
 
-  reqProm(ops){
+  private reqProm(ops){
     return new Promise((c, e)=>{
       let prom;
 
@@ -140,37 +135,63 @@ export class NodeProxyPools {
           e(err);
         });
       } catch (err) {
+        clearTimeout(handle);
         e(err);
       }
     })
   }
 
   position = 0;
-  private getReadyProxy(): Promise<any> {
-    return this.proxyList.then((pl: any[])=>{
-        if(this.position >= pl.length )
-          this.position = 0;
 
-        let item = pl[this.position];
+  /**
+   * takes in the current global proxy list promise
+   * returns a promise that waits until a valid proxy is found
+   * or errors because it cant find a valid proxy
+   * @param {Promise<any[]>} currentGlobalProxyList
+   * @returns {Promise<any>}
+   */
+  private getReadyProxy(currentGlobalProxyList: Promise<any[]>): Promise<any> {
 
-        let tries = 0;
-        while((item.failCount || 0) > this.failCountLimit) {
-          this.position++;
-          if(this.position >= pl.length )
-            this.position = 0;
+    return new Promise((c)=> {
+      recurseUntilValidProxy.call(this,0, currentGlobalProxyList).then(c);
+    });
 
-          item = pl[this.position];
-          if(tries > pl.length) {
-            this.position = 0;
-            return this.fetchAllProxies().then(this.getReadyProxy.bind(this))
-          }
+    //fetchProxyRetryCurrent the amount of times to fetch new proxies before
+    function recurseUntilValidProxy(fetchProxyRetryCurrent: number, proxyList: Promise<any[]>) {
+      //if we tried to fetch 20 proxy lists and none were successful, then quit, there is a serious error
+      if(fetchProxyRetryCurrent > 20)
+        throw new Error('no proxy list fetches returned valid proxies');
 
-          tries++;
+      return proxyList.then((proxyList: any[]) => {
+        try {
+          return findFirstValidProxy.call(this, proxyList, this.failCountLimit);
+        } catch (e) {
+          return recurseUntilValidProxy.call(this, ++fetchProxyRetryCurrent, this.fetchAllProxies());
         }
+      });
+    }
 
-        this.position++;
-        return item;
-      })
+    function findFirstValidProxy(proxyList: {failCount: number}[], failLimit: number){
+      let loopCounter = 0;
+      while(loopCounter < proxyList.length) {
+        let prox = nextProxy.call(this, proxyList);
+        let failCount = prox.failCount || 0;
+        if(failCount < failLimit)
+          return prox;
+
+        loopCounter++;
+      }
+      throw new Error("no more vaild proxies");
+    }
+    function nextProxy(proxyList: {failCount: number}[]): {failCount: number} {
+      let position = nextPosition.call(this, proxyList.length);
+      return proxyList[position];
+    }
+    function nextPosition(max): number {
+      if(this.position >= max )
+        this.position = -1;
+      return this.position++;
+    }
   }
 
 }

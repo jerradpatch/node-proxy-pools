@@ -23,6 +23,8 @@ export default class ProxyRotator {
               .then(obj=>{
                 obj.proto = "http";
                 return obj;
+              }).catch(e=>{
+                return null;
               })
           }),
           //retry the failed sequence after a second
@@ -33,7 +35,11 @@ export default class ProxyRotator {
             if(this.ops.debug)
               console.log(`ProxyRotator fetched 1 more of ${this.ops.threads}`);
           }),
-          toArray())
+          toArray(),
+          map(proxies=>{
+            //filter the null values
+            return proxies.filter(prox=>!!prox);
+          }))
       }),
       tap(()=>{
         if(this.ops.debug)
