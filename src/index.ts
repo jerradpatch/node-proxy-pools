@@ -33,6 +33,11 @@ export class NodeProxyPools {
   private fetching;
 
   fetchAllProxies(){
+    if(this.fetching)
+      return this.proxyList;
+
+    this.fetching = true;
+
     this.proxyList = Promise.all([
       this.pr.fetchNewList()
     ]).then((lists: any[][]) => {
@@ -40,6 +45,8 @@ export class NodeProxyPools {
       lists.forEach(list => {
         this.mergeList(currentList, list);
       });
+
+      this.fetching = false;
       return Object.keys(currentList).map(key => currentList[key]);
     });
     return this.proxyList;
@@ -57,10 +64,8 @@ export class NodeProxyPools {
     if (typeof options !== 'object' || options === null)
       throw new Error('the input to the request function should have been an object type');
 
-    let thiss = this;
-    return this.getReadyProxy(this.proxyList).then(proxy=> {
 
-      console.log('requesting');
+    return this.getReadyProxy(this.proxyList).then(proxy=> {
 
       let ops = Object.assign({}, options, {
         proxy: proxy.proto+ '://' + proxy.ip + ":" + proxy.port,
@@ -85,6 +90,7 @@ export class NodeProxyPools {
           return resp;
         })
         .catch((err) => {
+
           let code = err.error.code;
           if(code === 'ECONNRESET' ||
             code === 'ESOCKETTIMEDOUT' ||
@@ -109,6 +115,7 @@ export class NodeProxyPools {
             return this.request(options);
           }
 
+          console.log('req error', err)
           throw err;
         })
       });
@@ -153,7 +160,8 @@ export class NodeProxyPools {
   private getReadyProxy(currentGlobalProxyList: Promise<any[]>): Promise<any> {
 
     return new Promise((c)=> {
-      recurseUntilValidProxy.call(this,0, currentGlobalProxyList).then(c);
+      recurseUntilValidProxy.call(this,0, currentGlobalProxyList)
+        .then(c);
     });
 
     //fetchProxyRetryCurrent the amount of times to fetch new proxies before
@@ -166,6 +174,7 @@ export class NodeProxyPools {
         try {
           return findFirstValidProxy.call(this, proxyList, this.failCountLimit);
         } catch (e) {
+
           return recurseUntilValidProxy.call(this, ++fetchProxyRetryCurrent, this.fetchAllProxies());
         }
       });

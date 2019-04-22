@@ -19,18 +19,20 @@ export default class ProxyRotator {
       concatMap(()=>{
         return range(0, this.ops.threads).pipe(
           mergeMap(()=>{
-            return request(this.url)
-              .then(obj=>{
-                obj.proto = "http";
-                return obj;
-              }).catch(e=>{
-                return null;
-              })
+            try {
+              return request(this.url)
+                .then(obj => {
+                  obj.proto = "http";
+                  return obj;
+                }).catch(e => {
+                  console.log('pr error', e.message);
+                  return null;
+                })
+            } catch (e) {
+              debugger;
+              return null
+            }
           }),
-          //retry the failed sequence after a second
-          // retryWhen(errors=> errors.pipe(
-          //   delay(1000),
-          //   take(10))),
           tap(()=>{
             if(this.ops.debug)
               console.log(`ProxyRotator fetched 1 more of ${this.ops.threads}`);
@@ -53,31 +55,37 @@ export default class ProxyRotator {
 
     function request(url){
 
-      return rp({
+      try {
+        return rp({
           url,
-          json: true})
-        .catch(e=>{
-          if(retryCount < 10) {
-            retryCount++;
-            return new Promise((c,e)=> {
-              setTimeout(()=> {
-                return request(url)
-                  .then(c)
-                  .catch(e)
-              }, 1000);
-            });
-          }
-          throw e;
+          json: true
         })
-        .then(resp=>{
-          if(resp.error) {
-            // if(resp.error === )
-            // return request(url);
-            console.error("Proxy","ProxyRotator", "error", resp.error);
-            throw new Error(resp.error);
-          }
-          return resp;
-        })
+          .catch(e => {
+            if (retryCount < 10) {
+              retryCount++;
+              return new Promise((c, e) => {
+                setTimeout(() => {
+                  return request(url)
+                    .then(c)
+                    .catch(e)
+                }, 1000);
+              });
+            }
+            throw e;
+          })
+          .then(resp => {
+            if (resp.error) {
+              // if(resp.error === )
+              // return request(url);
+              console.error("Proxy", "ProxyRotator", "error", resp.error);
+              throw new Error(resp.error);
+            }
+            return resp;
+          })
+      } catch(e) {
+        debugger;
+        throw e;
+      }
     }
   }
 }

@@ -10,6 +10,7 @@ var rp = require('request-promise');
 import {fromPromise} from "rxjs/internal-compatibility";
 import ProxyRotator from "../src/ProxyRotator";
 import * as loadJsonFile from 'load-json-file';
+// import * as random_useragent from 'random-useragent';
 
 chai.use(chaiHttp);
 const expect = chai.expect;
@@ -21,11 +22,6 @@ let uri = 'https://www.google.com';
 
 describe('All features should work', () => {
 
-  // it('fetchNewList should not stack over flow the stack', function(done) {
-  //   this.timeout(30 * 1000);
-  //
-  //   spyOn(mymodule, 'myfunc2').and.returnValue = 3;
-  // })
 
   describe('ProxyRotator tests', () => {
     it('fetchNewList should return a new list every time', function(done) {
@@ -129,6 +125,7 @@ describe('All features should work', () => {
       })
     })
 
+    //seq test
     it('getReadyProxy should return different proxy every time', (done) => {
       let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 30}});
       let proms: any[] = [];
@@ -147,23 +144,6 @@ describe('All features should work', () => {
   })
 
   describe('The request function', () => {
-    // it('request should not be made until proxies are fetched', (done)=> {
-    //   let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 100}});
-    //
-    //   let ipPRoms = [];
-    //   for(let i = 0; i < 20; ++i) {
-    //     ipPRoms.push(npl['proxyList']().then(resp => {
-    //       return resp.request.proxy.href;
-    //     }));
-    //   }
-    //
-    //   Promise.all(ipPRoms).then(res=>{
-    //     res.reduce((ac, c)=>{
-    //       if(ac.length !== c.length)
-    //         done(new Error('the request did not wait'))
-    //     })
-    //   })
-    // })
 
     it('requests should all be made with a different ip address', (done)=>{
       let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 100}});
@@ -188,34 +168,6 @@ describe('All features should work', () => {
       });
     });
 
-    // not consistent
-
-    // it('requests should not be made with a proxy surpassing the fail count', (done)=>{
-    //   let npl = new NodeProxyPools({roOps:{apiKey: roApiKey}});
-    //   let nonFailProxy;
-    //   npl['$proxyList'] = npl['proxyList']
-    //     .then((list: any[])=>{
-    //       for(let i = 0; i < list.length - 1; ++i) {
-    //         list[i].failCount = npl['failCountLimit'] + 1;
-    //       }
-    //       nonFailProxy = list[list.length - 1];
-    //       return list;
-    //     });
-    //
-    //
-    //   npl.request({
-    //     uri,
-    //     resolveWithFullResponse: true
-    //   }).then(resp => {
-    //     let port = +resp.request.proxy.port;
-    //     let proto = resp.request.proxy.protocol;
-    //     expect(+nonFailProxy.port).to.equal(port);
-    //     expect(nonFailProxy.proto+":").to.equal(proto);
-    //
-    //     done();
-    //   })
-    // })
-
     it('if failing the passFn then the request should be tried again', (done)=>{
       let timesPassFnCalled = 0;
 
@@ -237,6 +189,72 @@ describe('All features should work', () => {
         done();
       })
     })
+
+    // it('example site test should pass', (done)=>{
+    //
+    //   process.on('uncaughtException', function (err) {
+    //     debugger;
+    //     console.log(err);
+    //   });
+    //
+    //   try {
+    //
+    //     let npl = new NodeProxyPools({
+    //       roOps: {
+    //         apiKey: roApiKey,
+    //         fetchProxies: 30
+    //       },
+    //       passFn(resp: string) {
+    //         console.log('nyaa pass');
+    //         return resp.indexOf('<meta property="og:site_name" content="Nyaa">') !== -1;
+    //       },
+    //       failFn(err) {
+    //         console.log('nyaa fail', err.statusCode, err.options.url);
+    //         //if dns resolution error, try again
+    //         if (err.message.indexOf('<strong>DNS resolving failed</strong>') !== -1)
+    //           return false;
+    //
+    //         if (err.statusCode === 404)
+    //           return true;
+    //
+    //         else if (err.statusCode >= 400) {
+    //           return false;
+    //         }
+    //
+    //         return true;
+    //       }
+    //     });
+    //
+    //     let allTests: any = [];
+    //     for (let i = 0; i < 100; ++i) {
+    //       let userAStr = random_useragent.getRandom();
+    //       let req = npl.request({
+    //         gzip: true,
+    //         method: 'GET',
+    //         uri: 'https://nyaa.si/view/1116270',
+    //         timeout: 30 * 1000,
+    //         maxRedirects: '10',
+    //         followRedirect: true,
+    //         rejectUnauthorized: false,
+    //         insecure: true,
+    //         headers: {
+    //           'user-agent': userAStr
+    //         }
+    //       }).catch(e => {
+    //         if (e.statusCode !== 404)
+    //           debugger;
+    //       });
+    //
+    //       allTests.push(req);
+    //     }
+    //
+    //     Promise.all(allTests).then(all => {
+    //       debugger;
+    //     })
+    //   } catch(e){
+    //     debugger;
+    //   }
+    // });
 
     it('if failing the passFn from the request then the request should be tried again', (done)=>{
       let timesPassFnCalled = 0;
@@ -354,21 +372,4 @@ describe('All features should work', () => {
     }).timeout(30 * 1000)
   });
 
-  //test recursion function, when error happens
-  // it('it should not run out of heap memory given infinite failures of proxy requests', (done)=> {
-  //   let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 200, debug: true}});
-  //   npl['reqProm'] = function(){ return Promise.reject({error: {code: 'ESOCKETTIMEDOUT'}})}
-  //
-  //   for(let i = 0 ; i < 300; i++)
-  //     npl.request({
-  //       uri,
-  //       resolveWithFullResponse: true
-  //     }).then(res=>{
-  //       debugger;
-  //     }).catch(e=>{
-  //       debugger;
-  //     })
-  // });
-
-  //test that an element fails after a given number of retries
 });
