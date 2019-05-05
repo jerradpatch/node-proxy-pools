@@ -1,6 +1,6 @@
 {
   "name": "node-proxy-pools",
-  "version": "1.0.4",
+  "version": "1.1.4",
   "description": "make proxy requests always work",
   "main": "src/index.js",
   "scripts": {
@@ -24,9 +24,13 @@
   },
   "homepage": "https://github.com/jerradpatch/node-proxy-pools#readme",
   "dependencies": {
+    "axios": "^0.18.0",
+    "axios-https-proxy-fix": "^0.17.1",
+    "bottleneck": "^2.18.0",
     "request": "^2.88.0",
-    "request-promise": "^4.2.2",
-    "rxjs": "^6.3.3"
+    "request-promise": "^4.2.4",
+    "rxjs": "^6.3.3",
+    "tunnel-agent": "git+https://github.com/jerradpatch/tunnel-agent.git"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",

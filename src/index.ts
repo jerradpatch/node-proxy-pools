@@ -1,5 +1,6 @@
+import Axios from 'axios-https-proxy-fix';
 
-var rp = require('request-promise');
+import Bottleneck from "bottleneck";
 import ProxyRotator from './ProxyRotator';
 
 export class NodeProxyPools {
@@ -8,32 +9,48 @@ export class NodeProxyPools {
   private timeout = 5 * 1000;
   private proxyList: Promise<any[]> = Promise.resolve([]);
 
-  pr = new ProxyRotator(this.options['roOps']);
+  private limiter;
+  private options: any;
 
-  constructor(private options: {
+  pr;
+
+  constructor(options: {
     roOps: {
       apiKey: string,
       fetchProxies: number,
       debug?: boolean
     }
-    failFn?: (inp: any)=>boolean,
-    passFn?: (inp: any)=>boolean
-  } = {
-    roOps: {
-      apiKey: "",
-      fetchProxies: 200
-    },
-    failFn: (inp)=>false,
-    //depends on options passed to request function
-    passFn: (resp)=>false
-  }){
+    failFn?: (inp: any) => boolean,
+    passFn?: (inp: any) => boolean,
+    maxConcurrent?: number,
+  } = {} as any) {
+
+    this.options = Object.assign({}, {
+        roOps: {
+          apiKey: "",
+          fetchProxies: 200
+        },
+        failFn: (inp) => false,
+        //depends on options passed to request function
+        passFn: (resp) => false,
+        maxConcurrent: 15
+      },
+      options);
+
+
+    this.pr = new ProxyRotator(this.options['roOps']);
+
+    this.limiter = new Bottleneck({
+      maxConcurrent: options.maxConcurrent,
+      minTime: 100
+    });
     this.fetchAllProxies();
   }
 
   private fetching;
 
-  fetchAllProxies(){
-    if(this.fetching)
+  fetchAllProxies() {
+    if (this.fetching)
       return this.proxyList;
 
     this.fetching = true;
@@ -52,10 +69,10 @@ export class NodeProxyPools {
     return this.proxyList;
   }
 
-  private mergeList(a: {[protIpPort: string]: any}, b: {proto: string, ip: string, port: number}[]) {
-    b.forEach((bItem)=>{
-      let key = bItem.proto+" "+bItem.ip+' '+bItem.port;
-      if(!a[key])
+  private mergeList(a: { [protIpPort: string]: any }, b: { proto: string, ip: string, port: number }[]) {
+    b.forEach((bItem) => {
+      let key = bItem.proto + " " + bItem.ip + ' ' + bItem.port;
+      if (!a[key])
         a[key] = bItem;
     })
   }
@@ -65,25 +82,24 @@ export class NodeProxyPools {
       throw new Error('the input to the request function should have been an object type');
 
 
-    return this.getReadyProxy(this.proxyList).then(proxy=> {
-
+    return this.getReadyProxy(this.proxyList).then(proxy => {
       let ops = Object.assign({}, options, {
-        proxy: proxy.proto+ '://' + proxy.ip + ":" + proxy.port,
-        insecure: true,
-        rejectUnauthorized: false,
-        timeout: this.timeout,
+        proxy: {
+          host: proxy.ip,
+          port: parseInt(proxy.port, 10)
+        },
         headers: {
           'User-Agent': proxy.randomUserAgent || ""
         }
       });
 
-      return this.reqProm.call(this, ops)
-        .then(resp=>{
-          if(this.options.passFn && !this.options.passFn(resp)) {
+      return this.scheduleProm.call(this, ops)
+        .then(resp => {
+          if (this.options.passFn && !this.options.passFn(resp.data)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
 
-          } else if(ops['nppOps'] && ops['nppOps'].passFn && !ops['nppOps'].passFn(resp)){
+          } else if (ops['nppOps'] && ops['nppOps'].passFn && !ops['nppOps'].passFn(resp.data)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
           }
@@ -91,60 +107,63 @@ export class NodeProxyPools {
         })
         .catch((err) => {
 
-          let code = err.error.code;
-          if(code === 'ECONNRESET' ||
+          let code = err.code;
+          if (code === 'ECONNRESET' ||
             code === 'ESOCKETTIMEDOUT' ||
             code === 'EPROTO' ||
             code === 'ECONNREFUSED' ||
-            code === 'HPE_INVALID_CONSTANT') {
+            code === 'HPE_INVALID_CONSTANT' ||
+            code === 'EHOSTUNREACH' ||
+            code === 'ENETUNREACH' ||
+            code === 'ECONNABORTED' ||
+            code === 'SELF_SIGNED_CERT_IN_CHAIN') {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
 
-          } else if(err.statusCode === 403 && (
+          } else if (err.statusCode === 403 && (
             err.error.indexOf('https://block.opendns.com/') !== -1 ||
             err.error.indexOf('This site has been blocked by the network administrator.') !== -1)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
 
-          } else if(this.options.failFn && !this.options.failFn(err)){
+          } else if (this.options.failFn && !this.options.failFn(err)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
 
-          } else if(ops['nppOps'] && ops['nppOps'].failFn && !ops['nppOps'].failFn(err)){
+          } else if (ops['nppOps'] && ops['nppOps'].failFn && !ops['nppOps'].failFn(err)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
             return this.request(options);
           }
 
-          console.log('req error', err)
           throw err;
         })
-      });
+    });
   }
 
-  private reqProm(ops){
-    return new Promise((c, e)=>{
+  private scheduleProm(ops) {
+    return this.limiter.schedule(this.reqProm.bind(this, ops))
+  }
+
+  private reqProm(ops) {
+    return new Promise((c, e) => {
       let prom;
 
-      let handle = setTimeout(()=> {
-        prom && prom['cancel'] && prom['cancel']();
-        e({
-          error: {
-            code: 'ESOCKETTIMEDOUT'
-          }})
-      }, this['timeout']);
+      const CancelToken = Axios.CancelToken;
+      const source = CancelToken.source();
 
-      try {
-        prom = rp(ops).then((res) => {
+      let handle = setTimeout(() => {
+        source.cancel();
+        e({code: 'ESOCKETTIMEDOUT'})
+      }, this.timeout);
+
+      return Axios(ops)
+        .then((res) => {
           clearTimeout(handle);
           c(res);
         }).catch(err => {
           clearTimeout(handle);
           e(err);
         });
-      } catch (err) {
-        clearTimeout(handle);
-        e(err);
-      }
     })
   }
 
@@ -159,15 +178,15 @@ export class NodeProxyPools {
    */
   private getReadyProxy(currentGlobalProxyList: Promise<any[]>): Promise<any> {
 
-    return new Promise((c)=> {
-      recurseUntilValidProxy.call(this,0, currentGlobalProxyList)
+    return new Promise((c) => {
+      recurseUntilValidProxy.call(this, 0, currentGlobalProxyList)
         .then(c);
     });
 
     //fetchProxyRetryCurrent the amount of times to fetch new proxies before
     function recurseUntilValidProxy(fetchProxyRetryCurrent: number, proxyList: Promise<any[]>) {
       //if we tried to fetch 20 proxy lists and none were successful, then quit, there is a serious error
-      if(fetchProxyRetryCurrent > 20)
+      if (fetchProxyRetryCurrent > 20)
         throw new Error('no proxy list fetches returned valid proxies');
 
       return proxyList.then((proxyList: any[]) => {
@@ -180,24 +199,26 @@ export class NodeProxyPools {
       });
     }
 
-    function findFirstValidProxy(proxyList: {failCount: number}[], failLimit: number){
+    function findFirstValidProxy(proxyList: { failCount: number }[], failLimit: number) {
       let loopCounter = 0;
-      while(loopCounter < proxyList.length) {
+      while (loopCounter < proxyList.length) {
         let prox = nextProxy.call(this, proxyList);
         let failCount = prox.failCount || 0;
-        if(failCount < failLimit)
+        if (failCount < failLimit)
           return prox;
 
         loopCounter++;
       }
       throw new Error("no more vaild proxies");
     }
-    function nextProxy(proxyList: {failCount: number}[]): {failCount: number} {
+
+    function nextProxy(proxyList: { failCount: number }[]): { failCount: number } {
       let position = nextPosition.call(this, proxyList.length);
       return proxyList[position];
     }
+
     function nextPosition(max): number {
-      if(this.position >= max )
+      if (this.position >= max)
         this.position = -1;
       return this.position++;
     }

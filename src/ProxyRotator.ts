@@ -1,6 +1,6 @@
 import {range} from "rxjs";
-import {concatMap, delay, map, mergeMap, retry, retryWhen, take, tap, toArray} from "rxjs/operators";
-var rp = require('request-promise');
+import {concatMap, map, mergeMap, tap, toArray} from "rxjs/operators";
+import Axios from 'axios';
 
 export default class ProxyRotator {
 
@@ -18,11 +18,11 @@ export default class ProxyRotator {
     return range(0, (this.ops.fetchProxies / this.ops.threads)).pipe(
       concatMap(()=>{
         return range(0, this.ops.threads).pipe(
-          mergeMap(()=>{
+          mergeMap((): any =>{
             try {
               return request(this.url)
                 .then(obj => {
-                  obj.proto = "http";
+                  obj['proto'] = "http";
                   return obj;
                 }).catch(e => {
                   console.log('pr error', e.message);
@@ -30,7 +30,7 @@ export default class ProxyRotator {
                 })
             } catch (e) {
               debugger;
-              return null
+              return null;
             }
           }),
           tap(()=>{
@@ -56,9 +56,8 @@ export default class ProxyRotator {
     function request(url){
 
       try {
-        return rp({
-          url,
-          json: true
+        return Axios({
+          url
         })
           .catch(e => {
             if (retryCount < 10) {
@@ -73,17 +72,17 @@ export default class ProxyRotator {
             }
             throw e;
           })
-          .then(resp => {
-            if (resp.error) {
-              // if(resp.error === )
-              // return request(url);
-              console.error("Proxy", "ProxyRotator", "error", resp.error);
-              throw new Error(resp.error);
+          .then((resp: any) => {
+            if(!resp.data)
+              throw new Error('no data in the return from proxy rotator');
+
+            if (resp.data.error) {
+              throw new Error(resp.data.error);
             }
-            return resp;
+
+            return resp.data;
           })
       } catch(e) {
-        debugger;
         throw e;
       }
     }

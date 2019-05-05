@@ -10,7 +10,7 @@ var rp = require('request-promise');
 import {fromPromise} from "rxjs/internal-compatibility";
 import ProxyRotator from "../src/ProxyRotator";
 import * as loadJsonFile from 'load-json-file';
-// import * as random_useragent from 'random-useragent';
+import * as random_useragent from 'random-useragent';
 
 chai.use(chaiHttp);
 const expect = chai.expect;
@@ -190,6 +190,8 @@ describe('All features should work', () => {
       })
     })
 
+
+
     // it('example site test should pass', (done)=>{
     //
     //   process.on('uncaughtException', function (err) {
@@ -202,36 +204,28 @@ describe('All features should work', () => {
     //     let npl = new NodeProxyPools({
     //       roOps: {
     //         apiKey: roApiKey,
-    //         fetchProxies: 30
+    //         fetchProxies: 30,
+    //         debug: true
     //       },
     //       passFn(resp: string) {
     //         console.log('nyaa pass');
     //         return resp.indexOf('<meta property="og:site_name" content="Nyaa">') !== -1;
     //       },
     //       failFn(err) {
-    //         console.log('nyaa fail', err.statusCode, err.options.url);
+    //         console.log('nyaa fail', err.statusCode, err.options && err.options.url);
     //         //if dns resolution error, try again
-    //         if (err.message.indexOf('<strong>DNS resolving failed</strong>') !== -1)
-    //           return false;
     //
-    //         if (err.statusCode === 404)
-    //           return true;
-    //
-    //         else if (err.statusCode >= 400) {
-    //           return false;
-    //         }
-    //
-    //         return true;
+    //         return false;
     //       }
     //     });
     //
     //     let allTests: any = [];
-    //     for (let i = 0; i < 100; ++i) {
+    //     for (let i = 0; i < 2000; ++i) {
     //       let userAStr = random_useragent.getRandom();
     //       let req = npl.request({
     //         gzip: true,
     //         method: 'GET',
-    //         uri: 'https://nyaa.si/view/1116270',
+    //         url: 'https://nyaa.si/view/1116270',
     //         timeout: 30 * 1000,
     //         maxRedirects: '10',
     //         followRedirect: true,
