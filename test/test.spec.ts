@@ -1,5 +1,3 @@
-
-
 import * as chai from 'chai';
 import chaiHttp = require('chai-http');
 import 'mocha';
@@ -22,17 +20,17 @@ describe('All features should work', () => {
 
 
   describe('ProxyRotator tests', () => {
-    it('fetchNewList should return a new list every time', function(done) {
+    it('fetchNewList should return a new list every time', function (done) {
       this.timeout(30 * 1000);
 
       let pr = new ProxyRotator({apiKey: roApiKey, debug: true, fetchProxies: 30});
-      range(0 ,3).pipe(
-        concatMap(()=> {
+      range(0, 3).pipe(
+        concatMap(() => {
           return pr.fetchNewList()
         }),
         toArray(),
         take(1))
-        .subscribe(lists=>{
+        .subscribe(lists => {
           expect(lists).to.have.length(3);
           done();
         })
@@ -41,7 +39,7 @@ describe('All features should work', () => {
 
   describe('The proxies work as expected, actual', () => {
     it('when starting up it should return a list of proxies', (done) => {
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true, fetchProxies: 30}});
+      let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, debug: true, fetchProxies: 30}});
       npl.fetchAllProxies().then((list) => {
         expect(list.length).to.be.gt(0);
         done();
@@ -49,74 +47,82 @@ describe('All features should work', () => {
     })
 
     it('when there is a large pool size there fetch rate should not be exceeded', (done) => {
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true, fetchProxies: 1000}, debug: true});
-
-      range(0,2).pipe(
-        mergeMap(()=>npl.request({
-        gzip: true,
-        method: 'GET',
-        url,
-        timeout: 30 * 1000,
-        maxRedirects: '10',
-        followRedirect: true,
-        rejectUnauthorized: false,
-        insecure: true,
-        headers: {
-          'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/71.0.3578.98 Chrome/71.0.3578.98 Safari/537.36'
+      let npl = new NodeProxyPools({
+        roOps: {apiKey: roApiKey, debug: true, fetchProxies: 1000}, debug: true, failFn() {
+          return false
         }
-      })),
-      toArray())
-      .subscribe((arr)=>{
-        expect(arr).to.have.lengthOf(2);
-        done();
-      }, err=>
-        done(new Error(err)))
+      });
+
+      range(0, 2).pipe(
+        mergeMap(() => npl.request({
+          gzip: true,
+          method: 'GET',
+          url,
+          timeout: 30 * 1000,
+          maxRedirects: '10',
+          followRedirect: true,
+          rejectUnauthorized: false,
+          insecure: true,
+          headers: {
+            'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/71.0.3578.98 Chrome/71.0.3578.98 Safari/537.36'
+          }
+        })),
+        toArray())
+        .subscribe((arr) => {
+          expect(arr).to.have.lengthOf(2);
+          done();
+        }, err =>
+          done(new Error(err)))
     })
 
-    it('when all proxies have been invalidated new proxies should be fetched', function(done) {
+    it('when all proxies have been invalidated new proxies should be fetched', function (done) {
       this.timeout(30 * 1000)
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, debug:true, fetchProxies: 30}});
+      let npl = new NodeProxyPools({
+        roOps: {apiKey: roApiKey, debug: true, fetchProxies: 30}, debug: true, failFn() {
+          return false
+        }
+      });
 
-      npl['proxyList'].then((list)=>{
+      npl['proxyList'].then((list) => {
         invalidateAllProxies(list, npl['failCountLimit']);
 
         range(0, 3).pipe(
-          concatMap(()=>{
+          concatMap(() => {
             //request and invalidate
-            return npl['proxyList'].then((list)=>{
+            return npl['proxyList'].then((list) => {
 
               invalidateAllProxies(list, npl['failCountLimit']);
 
               return npl.request({
-                  gzip: true,
-                  method: 'GET',
-                  url,
-                  timeout: 30 * 1000,
-                  maxRedirects: '10',
-                  followRedirect: true,
-                  rejectUnauthorized: false,
-                  insecure: true,
-                  headers: {
-                    'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/71.0.3578.98 Chrome/71.0.3578.98 Safari/537.36'
-                  }
-                })
+                gzip: true,
+                method: 'GET',
+                url,
+                timeout: 30 * 1000,
+                maxRedirects: '10',
+                followRedirect: true,
+                rejectUnauthorized: false,
+                insecure: true,
+                headers: {
+                  'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/71.0.3578.98 Chrome/71.0.3578.98 Safari/537.36'
+                }
               })
+            })
           }),
           toArray())
-          .subscribe(()=>{
+          .subscribe(() => {
             done();
           });
       })
 
-      function invalidateAllProxies(proxyList, limit){
-        proxyList.forEach(proxy=>{
+      function invalidateAllProxies(proxyList, limit) {
+        proxyList.forEach(proxy => {
           proxy.failCount = limit + 1;
         })
       }
     })
 
     it('getReadyProxy should return a single proxy', (done) => {
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 30}});
+      let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 30}});
       npl['getReadyProxy'](npl['proxyList']).then((prox) => {
         expect(prox).to.not.be.undefined;
         done();
@@ -125,7 +131,7 @@ describe('All features should work', () => {
 
     //seq test
     it('getReadyProxy should return different proxy every time', (done) => {
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 30}});
+      let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 30}});
       let proms: any[] = [];
       for (let i = 0; i < 20; i++) {
         proms.push(npl['getReadyProxy'](npl['proxyList']));
@@ -143,23 +149,23 @@ describe('All features should work', () => {
 
   describe('The request function', () => {
 
-    it('requests should all be made with a different ip address', (done)=>{
-      let npl = new NodeProxyPools({roOps:{apiKey: roApiKey, fetchProxies: 100, debug: true}, debug: true});
+    it('requests should all be made with a different ip address', (done) => {
+      let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 100, debug: true}, debug: true});
       let ipPRoms: any[] = [];
-      for(let i = 0; i < 20; ++i) {
+      for (let i = 0; i < 20; ++i) {
         ipPRoms.push(npl.request({
           url,
           resolveWithFullResponse: true
         }).then(resp => {
           console.log('ret', i);
           return i;
-        }).catch(e=>{
+        }).catch(e => {
           console.log(e.message)
           return null;
         }));
       }
-      Promise.all(ipPRoms).then(ips=>{
-        let unq = ips.reduce((acc, c)=>{
+      Promise.all(ipPRoms).then(ips => {
+        let unq = ips.reduce((acc, c) => {
           acc[c] = null;
           return acc;
         }, {});
@@ -170,30 +176,30 @@ describe('All features should work', () => {
       });
     });
 
-    it('if failing the passFn then the request should be tried again', (done)=>{
+    it('if failing the passFn then the request should be tried again', (done) => {
       let timesPassFnCalled = 0;
 
       let npl = new NodeProxyPools({
         debug: true,
-        roOps:{
+        roOps: {
           apiKey: roApiKey,
           fetchProxies: 30,
           debug: true
         },
-        passFn(resp){
+        passFn(resp) {
           timesPassFnCalled++;
           return timesPassFnCalled > 2
-        }});
+        }
+      });
 
       npl.request({
         url,
         resolveWithFullResponse: true
-      }).then(resp=>{
+      }).then(resp => {
         expect(timesPassFnCalled).to.be.gt(1);
         done();
       })
     })
-
 
 
     // it('example site test should pass', (done)=>{
@@ -252,84 +258,87 @@ describe('All features should work', () => {
     //     })
     // });
 
-    it('if failing the passFn from the request then the request should be tried again', (done)=>{
+    it('if failing the passFn from the request then the request should be tried again', (done) => {
       let timesPassFnCalled = 0;
 
       let npl = new NodeProxyPools({
         debug: true,
-        roOps:{
+        roOps: {
           apiKey: roApiKey,
           fetchProxies: 30,
           debug: true
-        }});
+        }
+      });
 
       npl.request({
         url,
         resolveWithFullResponse: true,
         nppOps: {
-          passFn(resp){
+          passFn(resp) {
             timesPassFnCalled++;
             return timesPassFnCalled > 2
           }
         }
-      }).then(resp=>{
+      }).then(resp => {
         expect(timesPassFnCalled).to.be.gt(1);
         done();
       })
     })
 
-    it('if the failFn returns true then the request should be tried again', (done)=>{
+    it('if the failFn returns true then the request should be tried again', (done) => {
       let timesFnCalled = 0;
 
       let npl = new NodeProxyPools({
         debug: true,
-        roOps:{
+        roOps: {
           apiKey: roApiKey,
           fetchProxies: 30,
           debug: true
         },
-        passFn(){
+        passFn() {
           return false;
         },
-        failFn(resp){
+        failFn(resp) {
           timesFnCalled++;
           return timesFnCalled > 2
-        }});
+        }
+      });
 
       npl.request({
         url: 'falseProto://www.falsePlace123$$.com',
         resolveWithFullResponse: true
-      }).then(resp=>{
+      }).then(resp => {
         done(new Error('a response should not have been delivered'));
-      }).catch(e=>{
+      }).catch(e => {
         expect(timesFnCalled).to.be.gt(1);
         done();
       })
     })
 
-    it('if the failFn returns on the request true then the request should be tried again', (done)=>{
+    it('if the failFn returns on the request true then the request should be tried again', (done) => {
       let timesFnCalled = 0;
 
       let npl = new NodeProxyPools({
         debug: true,
-        roOps:{
+        roOps: {
           apiKey: roApiKey,
           fetchProxies: 30,
           debug: true
-        }});
+        }
+      });
 
       npl.request({
         url: 'falseProto://www.falsePlace123$$.com',
         resolveWithFullResponse: true,
-        nppOps:{
-          failFn(resp){
+        nppOps: {
+          failFn(resp) {
             timesFnCalled++;
             return timesFnCalled > 2
           }
         }
-      }).then(resp=>{
+      }).then(resp => {
         done(new Error('a response should not have been delivered'));
-      }).catch(e=>{
+      }).catch(e => {
         expect(timesFnCalled).to.be.gt(1);
         done();
       })
