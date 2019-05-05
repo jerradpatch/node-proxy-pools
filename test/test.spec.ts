@@ -192,63 +192,63 @@ describe('All features should work', () => {
 
 
 
-    // it('example site test should pass', (done)=>{
-    //
-    //   process.on('uncaughtException', function (err) {
-    //     debugger;
-    //     console.log(err);
-    //   });
-    //
-    //   try {
-    //
-    //     let npl = new NodeProxyPools({
-    //       roOps: {
-    //         apiKey: roApiKey,
-    //         fetchProxies: 30,
-    //         debug: true
-    //       },
-    //       passFn(resp: string) {
-    //         console.log('nyaa pass');
-    //         return resp.indexOf('<meta property="og:site_name" content="Nyaa">') !== -1;
-    //       },
-    //       failFn(err) {
-    //         console.log('nyaa fail', err.statusCode, err.options && err.options.url);
-    //         //if dns resolution error, try again
-    //
-    //         return false;
-    //       }
-    //     });
-    //
-    //     let allTests: any = [];
-    //     for (let i = 0; i < 2000; ++i) {
-    //       let userAStr = random_useragent.getRandom();
-    //       let req = npl.request({
-    //         gzip: true,
-    //         method: 'GET',
-    //         url: 'https://nyaa.si/view/1116270',
-    //         timeout: 30 * 1000,
-    //         maxRedirects: '10',
-    //         followRedirect: true,
-    //         rejectUnauthorized: false,
-    //         insecure: true,
-    //         headers: {
-    //           'user-agent': userAStr
-    //         }
-    //       }).catch(e => {
-    //         if (e.statusCode !== 404)
-    //           debugger;
-    //       });
-    //
-    //       allTests.push(req);
-    //     }
-    //
-    //     Promise.all(allTests).then(all => {
-    //       debugger;
-    //     })
-    //   } catch(e){
-    //     debugger;
-    //   }
-    // });
+    it('example site test should pass', (done)=>{
+
+      process.on('uncaughtException', function (err) {
+        debugger;
+        console.log(err);
+      });
+
+      try {
+
+        let npl = new NodeProxyPools({
+          roOps: {
+            apiKey: roApiKey,
+            fetchProxies: 30,
+            debug: true
+          },
+          passFn(resp: string) {
+            console.log('nyaa pass');
+            return resp.indexOf('<meta property="og:site_name" content="Nyaa">') !== -1;
+          },
+          failFn(err) {
+            console.log('nyaa fail', err.statusCode, err.options && err.options.url);
+            //if dns resolution error, try again
+
+            return false;
+          }
+        });
+
+        let allTests: any = [];
+        for (let i = 0; i < 2000; ++i) {
+          let userAStr = random_useragent.getRandom();
+          let req = npl.request({
+            gzip: true,
+            method: 'GET',
+            url: 'https://nyaa.si/view/1116270',
+            timeout: 30 * 1000,
+            maxRedirects: '10',
+            followRedirect: true,
+            rejectUnauthorized: false,
+            insecure: true,
+            headers: {
+              'user-agent': userAStr
+            }
+          }).catch(e => {
+            if (e.statusCode !== 404)
+              debugger;
+          });
+
+          allTests.push(req);
+        }
+
+        Promise.all(allTests).then(all => {
+          debugger;
+        })
+      } catch(e){
+        debugger;
+      }
+    });
 
     it('if failing the passFn from the request then the request should be tried again', (done)=>{
       let timesPassFnCalled = 0;

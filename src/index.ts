@@ -23,6 +23,7 @@ export class NodeProxyPools {
     failFn?: (inp: any) => boolean,
     passFn?: (inp: any) => boolean,
     maxConcurrent?: number,
+    minTime?: number
   } = {} as any) {
 
     this.options = Object.assign({}, {
@@ -33,7 +34,8 @@ export class NodeProxyPools {
         failFn: (inp) => false,
         //depends on options passed to request function
         passFn: (resp) => false,
-        maxConcurrent: 15
+        maxConcurrent: 15,
+        minTime: 100
       },
       options);
 
@@ -42,7 +44,7 @@ export class NodeProxyPools {
 
     this.limiter = new Bottleneck({
       maxConcurrent: options.maxConcurrent,
-      minTime: 100
+      minTime: options.minTime
     });
     this.fetchAllProxies();
   }

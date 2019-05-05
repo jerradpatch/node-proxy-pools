@@ -30,7 +30,6 @@ var ProxyRotator = /** @class */ (function () {
                     });
                 }
                 catch (e) {
-                    debugger;
                     return null;
                 }
             }), operators_1.tap(function () {

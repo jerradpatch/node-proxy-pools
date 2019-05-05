@@ -21,12 +21,13 @@ var NodeProxyPools = /** @class */ (function () {
             failFn: function (inp) { return false; },
             //depends on options passed to request function
             passFn: function (resp) { return false; },
-            maxConcurrent: 15
+            maxConcurrent: 15,
+            minTime: 100
         }, options);
         this.pr = new ProxyRotator_1.default(this.options['roOps']);
         this.limiter = new bottleneck_1.default({
             maxConcurrent: options.maxConcurrent,
-            minTime: 100
+            minTime: options.minTime
         });
         this.fetchAllProxies();
     }

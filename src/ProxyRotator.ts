@@ -29,7 +29,6 @@ export default class ProxyRotator {
                   return null;
                 })
             } catch (e) {
-              debugger;
               return null;
             }
           }),
