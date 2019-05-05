@@ -10,7 +10,6 @@ var NodeProxyPools = /** @class */ (function () {
     function NodeProxyPools(options) {
         if (options === void 0) { options = {}; }
         this.failCountLimit = 5;
-        this.timeout = 5 * 1000;
         this.proxyList = Promise.resolve([]);
         this.position = 0;
         this.options = Object.assign({}, {
@@ -18,13 +17,15 @@ var NodeProxyPools = /** @class */ (function () {
                 apiKey: "",
                 fetchProxies: 200
             },
-            failFn: function (inp) { return false; },
+            debug: false,
+            failFn: function (inp) { return true; },
             //depends on options passed to request function
-            passFn: function (resp) { return false; },
+            passFn: function (resp) { return true; },
             maxConcurrent: 15,
             minTime: 100
         }, options);
         this.pr = new ProxyRotator_1.default(this.options['roOps']);
+        this.timeout = options.maxTime || 5 * 1000;
         this.limiter = new bottleneck_1.default({
             maxConcurrent: options.maxConcurrent,
             minTime: options.minTime
@@ -73,15 +74,23 @@ var NodeProxyPools = /** @class */ (function () {
                 .then(function (resp) {
                 if (_this.options.passFn && !_this.options.passFn(resp.data)) {
                     (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+                    if (_this.options.debug)
+                        console.info('node-proy-pools:request success', 'proxy pass function failed');
                     return _this.request(options);
                 }
                 else if (ops['nppOps'] && ops['nppOps'].passFn && !ops['nppOps'].passFn(resp.data)) {
                     (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+                    if (_this.options.debug)
+                        console.info('node-proy-pools:request success', 'options pass function failed');
                     return _this.request(options);
                 }
+                if (_this.options.debug)
+                    console.info('node-proy-pools:request success');
                 return resp;
             })
                 .catch(function (err) {
+                if (_this.options.debug)
+                    console.info('node-proy-pools:request error', err.message, 'fail count', proxy.failCount);
                 var code = err.code;
                 if (code === 'ECONNRESET' ||
                     code === 'ESOCKETTIMEDOUT' ||
@@ -123,7 +132,7 @@ var NodeProxyPools = /** @class */ (function () {
             var source = CancelToken.source();
             var handle = setTimeout(function () {
                 source.cancel();
-                e({ code: 'ESOCKETTIMEDOUT' });
+                e({ code: 'ESOCKETTIMEDOUT', message: 'ESOCKETTIMEDOUT' });
             }, _this.timeout);
             return axios_https_proxy_fix_1.default(ops)
                 .then(function (res) {

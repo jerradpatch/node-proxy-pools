@@ -1,89 +1,76 @@
-import {range} from "rxjs";
-import {concatMap, map, mergeMap, tap, toArray} from "rxjs/operators";
 import Axios from 'axios';
+import Bottleneck from "bottleneck";
 
 export default class ProxyRotator {
 
-  constructor(private ops){
-    this.ops = Object.assign({apiKey: "", fetchProxies: 200, threads: 10, debug: false}, ops)
+  limiter;
+
+  constructor(private ops) {
+    this.ops = Object.assign({apiKey: "", fetchProxies: 200, threads: 10, debug: false}, ops);
+
+    this.limiter = new Bottleneck({
+      maxConcurrent: ops.threads,
+      minTime: 100
+    });
   }
+
   url = `http://falcon.proxyrotator.com:51337/?apiKey=${this.ops.apiKey}&get=true&userAgent=true`;
 
-  fetchNewList(){
+  fetchNewList(): Promise<any> {
     let retryCount = 0;
 
-    if(this.ops.debug)
-      console.log("fetching ProxyRotator");
+    if (this.ops.debug)
+      console.info("fetching ProxyRotator");
 
-    return range(0, (this.ops.fetchProxies / this.ops.threads)).pipe(
-      concatMap(()=>{
-        return range(0, this.ops.threads).pipe(
-          mergeMap((): any =>{
-            try {
-              return request(this.url)
-                .then(obj => {
-                  obj['proto'] = "http";
-                  return obj;
-                }).catch(e => {
-                  console.log('pr error', e.message);
-                  return null;
-                })
-            } catch (e) {
-              return null;
+    let fetchProms = [] as Promise<any>[];
+
+    for (let i = 0; i < this.ops.fetchProxies; i++) {
+      let reqA = reqLimit.call(this, this.url);
+      fetchProms.push(reqA);
+    }
+
+    return (this.ops.debug ?
+      Promise.all(fetchProms).then((re) => {
+        console.info("completed ProxyRotator");
+        return re;
+      }) :
+      Promise.all(fetchProms));
+
+    function reqLimit(url): Promise<any> {
+      return this.limiter.schedule(request.bind(this, url))
+        .catch(e => {
+          if(this.ops.debug)
+            console.info("ProxyRotator, request error", e.message);
+
+          if(e.response && e.response.data){
+            if(e.response.data.error) {
+              //should never be reached due to bottle neck js
+              if(e.response.data.error === "Concurrent requests limit reached")
+                throw new Error(e);
             }
-          }),
-          tap(()=>{
-            if(this.ops.debug)
-              console.log(`ProxyRotator fetched 1 more of ${this.ops.threads}`);
-          }),
-          toArray(),
-          map(proxies=>{
-            //filter the null values
-            return proxies.filter(prox=>!!prox);
-          }))
-      }),
-      tap(()=>{
-        if(this.ops.debug)
-          console.log(`ProxyRotator fetched ${this.ops.threads} more of ${this.ops.fetchProxies}`);
-      }),
-      toArray(),
-      map((twoDArr: any[][]): any[] =>{
-        return [].concat(...twoDArr as any);
-      })
-    ).toPromise();
-
-    function request(url){
-
-      try {
-        return Axios({
-          url
+          }
+          if (retryCount < 10) {
+            retryCount++;
+            return reqLimit.call(this,url);
+          }
+          throw e;
         })
-          .catch(e => {
-            if (retryCount < 10) {
-              retryCount++;
-              return new Promise((c, e) => {
-                setTimeout(() => {
-                  return request(url)
-                    .then(c)
-                    .catch(e)
-                }, 1000);
-              });
-            }
-            throw e;
-          })
-          .then((resp: any) => {
-            if(!resp.data)
-              throw new Error('no data in the return from proxy rotator');
+    }
 
-            if (resp.data.error) {
-              throw new Error(resp.data.error);
-            }
+    function request(url): Promise<any> {
+      return Axios({
+        url
+      })
+      .then((resp: any) => {
+        if (!resp.data)
+          throw new Error('no data in the return from proxy rotator');
 
-            return resp.data;
-          })
-      } catch(e) {
-        throw e;
-      }
+        if (resp.data.error) {
+          throw new Error(resp.data.error);
+        }
+
+        return resp.data;
+      })
     }
   }
 }

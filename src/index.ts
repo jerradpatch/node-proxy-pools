@@ -6,7 +6,7 @@ import ProxyRotator from './ProxyRotator';
 export class NodeProxyPools {
 
   private failCountLimit = 5;
-  private timeout = 5 * 1000;
+  private timeout;
   private proxyList: Promise<any[]> = Promise.resolve([]);
 
   private limiter;
@@ -19,11 +19,13 @@ export class NodeProxyPools {
       apiKey: string,
       fetchProxies: number,
       debug?: boolean
-    }
+    },
+    debug?: boolean,
     failFn?: (inp: any) => boolean,
     passFn?: (inp: any) => boolean,
     maxConcurrent?: number,
-    minTime?: number
+    minTime?: number,
+    maxTime?: number
   } = {} as any) {
 
     this.options = Object.assign({}, {
@@ -31,9 +33,10 @@ export class NodeProxyPools {
           apiKey: "",
           fetchProxies: 200
         },
-        failFn: (inp) => false,
+        debug: false,
+        failFn: (inp) => true,
         //depends on options passed to request function
-        passFn: (resp) => false,
+        passFn: (resp) => true,
         maxConcurrent: 15,
         minTime: 100
       },
@@ -42,6 +45,7 @@ export class NodeProxyPools {
 
     this.pr = new ProxyRotator(this.options['roOps']);
 
+    this.timeout = options.maxTime || 5 * 1000;
     this.limiter = new Bottleneck({
       maxConcurrent: options.maxConcurrent,
       minTime: options.minTime
@@ -99,15 +103,28 @@ export class NodeProxyPools {
         .then(resp => {
           if (this.options.passFn && !this.options.passFn(resp.data)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+
+            if(this.options.debug)
+              console.info('node-proy-pools:request success', 'proxy pass function failed');
+
             return this.request(options);
 
           } else if (ops['nppOps'] && ops['nppOps'].passFn && !ops['nppOps'].passFn(resp.data)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
+
+            if(this.options.debug)
+              console.info('node-proy-pools:request success', 'options pass function failed');
+
             return this.request(options);
           }
+          if(this.options.debug)
+            console.info('node-proy-pools:request success');
+
           return resp;
         })
         .catch((err) => {
+          if(this.options.debug)
+            console.info('node-proy-pools:request error', err.message, 'fail count', proxy.failCount);
 
           let code = err.code;
           if (code === 'ECONNRESET' ||
@@ -155,7 +172,7 @@ export class NodeProxyPools {
 
       let handle = setTimeout(() => {
         source.cancel();
-        e({code: 'ESOCKETTIMEDOUT'})
+        e({code: 'ESOCKETTIMEDOUT', message: 'ESOCKETTIMEDOUT'})
       }, this.timeout);
 
       return Axios(ops)
