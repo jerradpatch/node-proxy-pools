@@ -63,11 +63,12 @@ export class NodeProxyPools {
 
     this.proxyList = Promise.all([
       this.pr.fetchNewList()
-    ]).then((lists: any[][]) => {
+    ]).then((lists: any) => {
+
+      let list: any = [].concat(...lists);
+      let filteredList = list.filter(al=>!!al);
       let currentList = {};
-      lists.forEach(list => {
-        this.mergeList(currentList, list);
-      });
+      this.mergeList(currentList, filteredList);
 
       this.fetching = false;
       return Object.keys(currentList).map(key => currentList[key]);

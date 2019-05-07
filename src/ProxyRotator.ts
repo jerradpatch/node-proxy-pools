@@ -16,7 +16,7 @@ export default class ProxyRotator {
 
   url = `http://falcon.proxyrotator.com:51337/?apiKey=${this.ops.apiKey}&get=true&userAgent=true`;
 
-  fetchNewList(): Promise<any> {
+  fetchNewList(): Promise<any[]> {
     let retryCount = 0;
 
     if (this.ops.debug)
@@ -46,14 +46,14 @@ export default class ProxyRotator {
             if(e.response.data.error) {
               //should never be reached due to bottle neck js
               if(e.response.data.error === "Concurrent requests limit reached")
-                throw new Error(e);
+                return reqLimit.call(this,url);
             }
           }
           if (retryCount < 10) {
             retryCount++;
             return reqLimit.call(this,url);
           }
-          throw e;
+          return null;
         })
     }
 

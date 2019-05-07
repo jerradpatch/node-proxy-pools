@@ -345,6 +345,98 @@ describe('All features should work', () => {
     })
   })
 
+  describe('instance tests', () => {
+
+    it('it should complete the test 1', (done) => {
+      let expectedImgs = [
+        'https://static.zerochan.net/Gripen.%28Girly.Air.Force%29.full.2330547.png',
+        'https://static.zerochan.net/Toshokan.Sensou.full.1186015.jpg',
+        'https://static.zerochan.net/Hello.Happy.World%21.full.2317915.png',
+        'https://static.zerochan.net/Yu-Gi-Oh%21.full.2094760.jpg',
+        'https://static.zerochan.net/Gilgamesh.full.1554634.jpg',
+        'https://static.zerochan.net/Doujima.Daisuke.full.2443045.jpg',
+        'https://static.zerochan.net/Izumi.Kyouka.(Meikoi).full.2451591.jpg',
+        'https://static.zerochan.net/Rina.%28Kemurikusa%29.full.2501227.png',
+        "https://static.zerochan.net/Aisare.Roommate.full.1670536.jpg",
+        'https://static.zerochan.net/Yakusoku.no.Neverland.full.2515227.jpg'
+      ];
+
+      let npl = new NodeProxyPools({
+        roOps: {apiKey: roApiKey, fetchProxies: 100, debug: true},
+        debug: true,
+        maxTime: 20*1000,
+        failFn(){return false;}
+      });
+
+      let mapProms = expectedImgs.map(url=>npl.request({url}))
+
+      Promise.all(mapProms).then(()=>{
+        done()
+      }).catch((e)=>{
+        done(new Error(e));
+      })
+    })
+    // it('example site test should pass', (done)=>{
+    //
+    //   process.on('uncaughtException', function (err) {
+    //     debugger;
+    //     console.log(err);
+    //   });
+    //
+    //   try {
+    //
+    //     let npl = new NodeProxyPools({
+    //       roOps: {
+    //         apiKey: roApiKey,
+    //         fetchProxies: 30,
+    //         debug: true
+    //       },
+    //       debug: true,
+    //       passFn(resp: string) {
+    //         console.log('nyaa pass');
+    //         return resp.indexOf('<meta property="og:site_name" content="Nyaa">') !== -1;
+    //       },
+    //       failFn(err) {
+    //         console.log('nyaa fail', err.statusCode, err.options && err.options.url);
+    //         //if dns resolution error, try again
+    //
+    //         return false;
+    //       }
+    //     });
+    //
+    //     let allTests: any = [];
+    //     for (let i = 0; i < 2000; ++i) {
+    //       let userAStr = random_useragent.getRandom();
+    //       let req = npl.request({
+    //         gzip: true,
+    //         method: 'GET',
+    //         url: 'https://nyaa.si/view/1116270',
+    //         timeout: 30 * 1000,
+    //         maxRedirects: '10',
+    //         followRedirect: true,
+    //         rejectUnauthorized: false,
+    //         insecure: true,
+    //         headers: {
+    //           'user-agent': userAStr
+    //         }
+    //       }).catch(e => {
+    //         if (e.statusCode !== 404)
+    //           debugger;
+    //       });
+    //
+    //       allTests.push(req);
+    //     }
+    //
+    //     Promise.all(allTests).then(all => {
+    //       debugger;
+    //     })
+    // });
+
+    it('it should complete the test 2', (done) => {
+      done();
+    })
+  })
+
   // describe('Performance tests', () => {
   //   it('preforming requests with a proxy in parallel should be faster then requests without proxy in series', (done)=>{
   //     let testRang = 5;
