@@ -85,9 +85,11 @@ export class NodeProxyPools {
   }
 
   request(options): Promise<any> {
-    if (typeof options !== 'object' || options === null)
+    if (typeof options !== 'object' || !options)
       throw new Error('the input to the request function should have been an object type');
 
+    if(this.options.debug && !options['stats'])
+      options['stats'] = {};
 
     return this.getReadyProxy(this.proxyList).then(proxy => {
       let ops = Object.assign({}, options, {
@@ -108,7 +110,7 @@ export class NodeProxyPools {
             if(this.options.debug)
               console.info('node-proy-pools:request success', 'proxy pass function failed');
 
-            return this.request(options);
+            return this.request(ops);
 
           } else if (ops['nppOps'] && ops['nppOps'].passFn && !ops['nppOps'].passFn(resp.data)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
@@ -116,7 +118,7 @@ export class NodeProxyPools {
             if(this.options.debug)
               console.info('node-proy-pools:request success', 'options pass function failed');
 
-            return this.request(options);
+            return this.request(ops);
           }
           if(this.options.debug)
             console.info('node-proy-pools:request success');
@@ -138,21 +140,21 @@ export class NodeProxyPools {
             code === 'ECONNABORTED' ||
             code === 'SELF_SIGNED_CERT_IN_CHAIN') {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
-            return this.request(options);
+            return this.request(ops);
 
           } else if (err.statusCode === 403 && (
             err.error.indexOf('https://block.opendns.com/') !== -1 ||
             err.error.indexOf('This site has been blocked by the network administrator.') !== -1)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
-            return this.request(options);
+            return this.request(ops);
 
           } else if (this.options.failFn && !this.options.failFn(err)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
-            return this.request(options);
+            return this.request(ops);
 
           } else if (ops['nppOps'] && ops['nppOps'].failFn && !ops['nppOps'].failFn(err)) {
             (proxy.failCount ? proxy.failCount++ : proxy.failCount = 1);
-            return this.request(options);
+            return this.request(ops);
           }
 
           throw err;
@@ -164,9 +166,11 @@ export class NodeProxyPools {
     return this.limiter.schedule(this.reqProm.bind(this, ops))
   }
 
+  kk = 0;
+
   private reqProm(ops) {
     return new Promise((c, e) => {
-      let prom;
+      let prom, requestTime;
 
       const CancelToken = Axios.CancelToken;
       const source = CancelToken.source();
@@ -176,15 +180,27 @@ export class NodeProxyPools {
         e({code: 'ESOCKETTIMEDOUT', message: 'ESOCKETTIMEDOUT'})
       }, this.timeout);
 
+      if(this.options.debug && !ops.stats.requestStart) {
+        ops.stats.requestStart = Date.now();
+        console.log('start',ops.stats.requestStart, this.kk++)
+      }
+
       return Axios(ops)
         .then((res) => {
           clearTimeout(handle);
+          setStopTime.call(this);
           c(res);
         }).catch(err => {
           clearTimeout(handle);
+          setStopTime.call(this);
           e(err);
         });
     })
+
+    function setStopTime(){
+      if(this.options.debug)
+        ops.stats.requestStop = Date.now();
+    }
   }
 
   position = 0;

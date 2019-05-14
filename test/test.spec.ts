@@ -6,7 +6,7 @@ import {concatMap, mergeMap, take, toArray} from "rxjs/operators";
 import {range} from "rxjs";
 import ProxyRotator from "../src/ProxyRotator";
 import * as loadJsonFile from 'load-json-file';
-import * as random_useragent from 'random-useragent';
+// import * as random_useragent from 'random-useragent';
 
 chai.use(chaiHttp);
 const expect = chai.expect;
@@ -154,8 +154,7 @@ describe('All features should work', () => {
       let ipPRoms: any[] = [];
       for (let i = 0; i < 20; ++i) {
         ipPRoms.push(npl.request({
-          url,
-          resolveWithFullResponse: true
+          url
         }).then(resp => {
           console.log('ret', i);
           return i;
@@ -174,6 +173,89 @@ describe('All features should work', () => {
         done();
 
       });
+    });
+
+    it('requests should all be made in parallel', (done) => {
+      let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 100, debug: false}, minTime: 0, debug: true});
+      let ipPRoms: any[] = [];
+      let ops = [] as any;
+      let numReq = 30;
+
+      for (let i = 0; i < numReq; ++i) {
+        let op = {url};
+        ops.push(op);
+        ipPRoms.push(npl.request(op).catch(e=>{}))
+      }
+
+      Promise.all(ipPRoms).then(ips => {
+
+        ops.reduce((p, c)=>{
+          let ps = p.stats, cs = c.stats;
+          expect(ps.requestStart).to.be.lte(cs.requestStart);
+          expect(cs.requestStart).to.be.lte(ps.requestStop);
+
+          return c;
+        });
+
+        //time
+        let minStart = Math.min(...ops.map(op=>op.stats.requestStart));
+        let maxStart = Math.max(...ops.map(op=>op.stats.requestStart));
+
+        expect((maxStart - minStart)).to.be.lessThan(200);
+
+        //time between start and stop should take longer then 20mills
+        ops.forEach(op=>{
+          let cs = op.stats;
+          expect((cs.requestStop - cs.requestStart)).to.be.gt(20)
+        });
+
+        done();
+      })
+    });
+
+    it('requests should not be completed until proxies are returned', function(done){
+      let returnedBeforeComplete = true;
+
+      let npl = new NodeProxyPools({
+        roOps: {apiKey: roApiKey, fetchProxies: 100, debug: true},
+        debug: true,
+        passFn(){
+          //if fetch returned before fetch completed, fail test
+          expect(returnedBeforeComplete).to.be.false;
+          return true;
+        },
+        failFn(){
+          //if fail before fetch completed, fail test
+          expect(returnedBeforeComplete).to.be.false;
+          return false;
+        },
+        maxTime: 10*1000
+      });
+
+
+      //make proxy take 20 seconds
+      let oldFn = npl['getReadyProxy'].bind(npl);
+      npl['getReadyProxy'] = function(item){
+
+        let time = new Promise((c)=>{
+          setTimeout(()=>{
+            c();
+            returnedBeforeComplete = false;
+          }, 20 * 1000);
+        });
+
+        return Promise.all([oldFn(item), time]).then(items=>items[0]);
+      };
+
+      let req = [] as any;
+      for(var i = 0; i < 20; ++i){
+        req.push(npl.request({url:'https://www.google.com'}));
+      }
+      Promise.all(req).then(()=>{
+        done();
+      }).catch(e=>{
+        done(new Error(e));
+      })
     });
 
     it('if failing the passFn then the request should be tried again', (done) => {
@@ -198,65 +280,8 @@ describe('All features should work', () => {
       }).then(resp => {
         expect(timesPassFnCalled).to.be.gt(1);
         done();
-      })
+      }).catch(e=>{})
     })
-
-
-    // it('example site test should pass', (done)=>{
-    //
-    //   process.on('uncaughtException', function (err) {
-    //     debugger;
-    //     console.log(err);
-    //   });
-    //
-    //   try {
-    //
-    //     let npl = new NodeProxyPools({
-    //       roOps: {
-    //         apiKey: roApiKey,
-    //         fetchProxies: 30,
-    //         debug: true
-    //       },
-    //       debug: true,
-    //       passFn(resp: string) {
-    //         console.log('nyaa pass');
-    //         return resp.indexOf('<meta property="og:site_name" content="Nyaa">') !== -1;
-    //       },
-    //       failFn(err) {
-    //         console.log('nyaa fail', err.statusCode, err.options && err.options.url);
-    //         //if dns resolution error, try again
-    //
-    //         return false;
-    //       }
-    //     });
-    //
-    //     let allTests: any = [];
-    //     for (let i = 0; i < 2000; ++i) {
-    //       let userAStr = random_useragent.getRandom();
-    //       let req = npl.request({
-    //         gzip: true,
-    //         method: 'GET',
-    //         url: 'https://nyaa.si/view/1116270',
-    //         timeout: 30 * 1000,
-    //         maxRedirects: '10',
-    //         followRedirect: true,
-    //         rejectUnauthorized: false,
-    //         insecure: true,
-    //         headers: {
-    //           'user-agent': userAStr
-    //         }
-    //       }).catch(e => {
-    //         if (e.statusCode !== 404)
-    //           debugger;
-    //       });
-    //
-    //       allTests.push(req);
-    //     }
-    //
-    //     Promise.all(allTests).then(all => {
-    //       debugger;
-    //     })
-    // });
 
     it('if failing the passFn from the request then the request should be tried again', (done) => {
       let timesPassFnCalled = 0;
@@ -282,7 +307,7 @@ describe('All features should work', () => {
       }).then(resp => {
         expect(timesPassFnCalled).to.be.gt(1);
         done();
-      })
+      }).catch(e=>{})
     })
 
     it('if the failFn returns true then the request should be tried again', (done) => {
