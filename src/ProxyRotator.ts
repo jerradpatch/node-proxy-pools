@@ -25,7 +25,8 @@ export default class ProxyRotator {
     let fetchProms = [] as Promise<any>[];
 
     for (let i = 0; i < this.ops.fetchProxies; i++) {
-      let reqA = reqLimit.call(this, this.url);
+      let reqA = reqLimit.call(this, this.url)
+          .then(this.formatData)
       fetchProms.push(reqA);
     }
 
@@ -45,8 +46,10 @@ export default class ProxyRotator {
           if(e.response && e.response.data){
             if(e.response.data.error) {
               //should never be reached due to bottle neck js
-              if(e.response.data.error === "Concurrent requests limit reached")
-                return reqLimit.call(this,url);
+              // if(e.response.data.error === "Concurrent requests limit reached")
+                throw e;
+
+
             }
           }
           if (retryCount < 10) {
@@ -71,6 +74,22 @@ export default class ProxyRotator {
 
         return resp.data;
       })
+    }
+  }
+
+  formatData(data){
+    if(!data)
+      return data;
+
+    let port;
+    try {
+      port = parseInt(data.port, 10);
+    } catch(e){
+      port = 0;
+    }
+    return {
+      host: data.ip || "",
+      port
     }
   }
 }

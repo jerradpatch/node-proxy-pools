@@ -2,6 +2,7 @@ import Axios from 'axios-https-proxy-fix';
 
 import Bottleneck from "bottleneck";
 import ProxyRotator from './ProxyRotator';
+import Luminati from './Luminati';
 
 export class NodeProxyPools {
 
@@ -13,12 +14,18 @@ export class NodeProxyPools {
   private options: any;
 
   pr;
+  lum;
 
   constructor(options: {
-    roOps: {
+    roOps?: {
       apiKey: string,
       fetchProxies: number,
       debug?: boolean
+    },
+    luOps?: {
+      username: string,
+      password: string,
+      port: number
     },
     debug?: boolean,
     failFn?: (inp: any) => boolean,
@@ -29,23 +36,22 @@ export class NodeProxyPools {
   } = {} as any) {
 
     this.options = Object.assign({}, {
-        roOps: {
-          apiKey: "",
-          fetchProxies: 200
-        },
         debug: false,
         failFn: (inp) => true,
         //depends on options passed to request function
         passFn: (resp) => true,
         maxConcurrent: 15,
-        minTime: 100
+        minTime: 100,
+        maxTime: 5 * 1000
       },
       options);
 
 
-    this.pr = new ProxyRotator(this.options['roOps']);
+    if(this.options['roOps'])
+      this.pr = new ProxyRotator(this.options['roOps']);
+    if(this.options['luOps'])
+      this.lum = new Luminati(this.options['luOps']);
 
-    this.timeout = options.maxTime || 5 * 1000;
     this.limiter = new Bottleneck({
       maxConcurrent: options.maxConcurrent,
       minTime: options.minTime
@@ -58,20 +64,26 @@ export class NodeProxyPools {
   fetchAllProxies() {
     if (this.fetching)
       return this.proxyList;
-
     this.fetching = true;
 
-    this.proxyList = Promise.all([
-      this.pr.fetchNewList()
-    ]).then((lists: any) => {
+    let fetchList = [] as any[];
+
+    if(this.pr)
+      fetchList.push(this.pr.fetchNewList());
+    if(this.lum)
+      fetchList.push(this.lum.fetchNewList());
+
+    this.proxyList = Promise.all(fetchList)
+        .then((lists: any) => {
 
       let list: any = [].concat(...lists);
-      let filteredList = list.filter(al=>!!al);
-      let currentList = {};
-      this.mergeList(currentList, filteredList);
+      // let filteredList = list.filter(al=>!!al);
+      // let currentList = {};
+      // this.mergeList(currentList, filteredList);
 
       this.fetching = false;
-      return Object.keys(currentList).map(key => currentList[key]);
+      //return Object.keys(currentList).map(key => currentList[key]);
+      return list;
     });
     return this.proxyList;
   }
@@ -93,10 +105,7 @@ export class NodeProxyPools {
 
     return this.getReadyProxy(this.proxyList).then(proxy => {
       let ops = Object.assign({}, options, {
-        proxy: {
-          host: proxy.ip,
-          port: parseInt(proxy.port, 10)
-        },
+        proxy,
         headers: {
           'User-Agent': proxy.randomUserAgent || ""
         }
@@ -175,10 +184,12 @@ export class NodeProxyPools {
       const CancelToken = Axios.CancelToken;
       const source = CancelToken.source();
 
+      ops.cancelToken = source.token;
+
       let handle = setTimeout(() => {
-        source.cancel();
+        source.cancel("ESOCKETTIMEDOUT");
         e({code: 'ESOCKETTIMEDOUT', message: 'ESOCKETTIMEDOUT'})
-      }, this.timeout);
+      }, this.options.maxTime);
 
       if(this.options.debug && !ops.stats.requestStart) {
         ops.stats.requestStart = Date.now();

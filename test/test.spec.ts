@@ -5,8 +5,11 @@ import {NodeProxyPools} from "../src/index";
 import {concatMap, mergeMap, take, toArray} from "rxjs/operators";
 import {range} from "rxjs";
 import ProxyRotator from "../src/ProxyRotator";
+import Luminati from "../src/Luminati";
 import * as loadJsonFile from 'load-json-file';
 // import * as random_useragent from 'random-useragent';
+
+declare var Promise;
 
 chai.use(chaiHttp);
 const expect = chai.expect;
@@ -14,10 +17,60 @@ const expect = chai.expect;
 let confJson = loadJsonFile.sync('config.json') as any;
 let roApiKey = confJson.proxyRotatorApiKey;
 
-let url = 'https://www.google.com';
+let url = 'https://pusher.com';
 
 describe('All features should work', () => {
 
+  describe('Compare Proxies', () => {
+/*
+    it('a single request should pass', function (done) {
+
+      let passFn = function(data){
+        return data.indexOf('Pusher | Leader In Realtime Technologies') !== -1;
+      }
+      let failFn = function(){
+        return false;
+      }
+
+      let lumNpl = new NodeProxyPools({
+        luOps: Object['assign']({fetchProxies: 30}, confJson.luminatiObj),
+        debug: false,
+        passFn,
+        failFn
+      });
+
+      let prNpl = new NodeProxyPools({
+        roOps: {apiKey: roApiKey, fetchProxies: 30},
+        debug: true,
+        passFn,
+        failFn
+      });
+
+      let roReq = [] as any;
+      let luReq = [] as any;
+
+      Promise.all([prNpl['proxyList'], lumNpl['proxyList']]).then(()=>{
+        for(let i = 0; i < 100; ++i){
+          roReq.push(prNpl.request({url}));
+          luReq.push(lumNpl.request({url}));
+        }
+
+        let startTime = Date.now();
+        Promise.all(roReq).then(()=>{
+          console.log('proxy rotator finish time', Math.floor((Date.now() - startTime) / 1000))
+        })
+
+        Promise.all(luReq).then(()=>{
+          console.log('luminati finish time', Math.floor((Date.now() - startTime) / 1000))
+        })
+
+        Promise.all([].concat(roReq, luReq)).then(()=>{
+          done();
+        })
+      });
+    })
+    */
+  });
 
   describe('ProxyRotator tests', () => {
     it('fetchNewList should return a new list every time', function (done) {
@@ -37,9 +90,47 @@ describe('All features should work', () => {
     })
   });
 
+  describe('Luminati tests', () => {
+    it('fetchNewList should return a new list every time', function (done) {
+      this.timeout(30 * 1000);
+
+      // @ts-ignore
+      let luConfig = Object.assign({fetchProxies: 30}, confJson.luminatiObj)
+      let lum = new Luminati(luConfig);
+      range(0, 3).pipe(
+          concatMap(() => {
+            return lum.fetchNewList()
+          }),
+          toArray(),
+          take(1))
+          .subscribe(lists => {
+            expect(lists).to.have.length(3);
+            done();
+          })
+    })
+
+    it('a single request should pass', function (done) {
+      let npl = new NodeProxyPools({
+        luOps: Object['assign']({fetchProxies: 30}, confJson.luminatiObj),
+        debug: true
+      });
+
+      npl.request({
+        method: 'GET',
+        url
+      }).then((list) => {
+        expect(list.status).to.equal(200);
+        done();
+      })
+    })
+  });
+  
   describe('The proxies work as expected, actual', () => {
     it('when starting up it should return a list of proxies', (done) => {
-      let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, debug: true, fetchProxies: 30}});
+      let npl = new NodeProxyPools({
+       // roOps: {apiKey: roApiKey, debug: true, fetchProxies: 30},
+        luOps: Object['assign']({fetchProxies: 30}, confJson.luminatiObj)
+      });
       npl.fetchAllProxies().then((list) => {
         expect(list.length).to.be.gt(0);
         done();
@@ -48,7 +139,10 @@ describe('All features should work', () => {
 
     it('when there is a large pool size there fetch rate should not be exceeded', (done) => {
       let npl = new NodeProxyPools({
-        roOps: {apiKey: roApiKey, debug: true, fetchProxies: 1000}, debug: true, failFn() {
+     //   roOps: {apiKey: roApiKey, debug: true, fetchProxies: 300},
+        luOps: Object['assign']({fetchProxies: 300}, confJson.luminatiObj),
+        debug: true,
+        failFn() {
           return false
         }
       });
@@ -78,7 +172,9 @@ describe('All features should work', () => {
     it('when all proxies have been invalidated new proxies should be fetched', function (done) {
       this.timeout(30 * 1000)
       let npl = new NodeProxyPools({
-        roOps: {apiKey: roApiKey, debug: true, fetchProxies: 30}, debug: true, failFn() {
+      //  roOps: {apiKey: roApiKey, debug: true, fetchProxies: 30}, debug: true,
+        luOps: Object['assign']({fetchProxies: 1000}, confJson.luminatiObj),
+        failFn() {
           return false
         }
       });
@@ -122,7 +218,10 @@ describe('All features should work', () => {
     })
 
     it('getReadyProxy should return a single proxy', (done) => {
-      let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 30}});
+      let npl = new NodeProxyPools({
+        roOps: {apiKey: roApiKey, fetchProxies: 30},
+        luOps: Object['assign']({fetchProxies: 30}, confJson.luminatiObj),
+      });
       npl['getReadyProxy'](npl['proxyList']).then((prox) => {
         expect(prox).to.not.be.undefined;
         done();
@@ -130,25 +229,25 @@ describe('All features should work', () => {
     })
 
     //seq test
-    it('getReadyProxy should return different proxy every time', (done) => {
-      let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 30}});
-      let proms: any[] = [];
-      for (let i = 0; i < 20; i++) {
-        proms.push(npl['getReadyProxy'](npl['proxyList']));
-      }
-      Promise.all(proms).then((proms) => {
-        let distinct = proms.reduce((acc, c) => {
-          acc[c.proto + " " + c.ip + " " + c.port] = null;
-          return acc;
-        }, {});
-        expect(Object.keys(distinct)).to.have.length(20);
-        done();
-      })
-    })
+    // it('getReadyProxy should return different proxy every time', (done) => {
+    //   let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 30}});
+    //   let proms: any[] = [];
+    //   for (let i = 0; i < 20; i++) {
+    //     proms.push(npl['getReadyProxy'](npl['proxyList']));
+    //   }
+    //   Promise.all(proms).then((proms) => {
+    //     let distinct = proms.reduce((acc, c) => {
+    //       acc[c.proto + " " + c.ip + " " + c.port] = null;
+    //       return acc;
+    //     }, {});
+    //     expect(Object.keys(distinct)).to.have.length(20);
+    //     done();
+    //   })
+    // })
   })
 
   describe('The request function', () => {
-
+/*
     it('requests should all be made with a different ip address', (done) => {
       let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 100, debug: true}, debug: true});
       let ipPRoms: any[] = [];
@@ -174,9 +273,13 @@ describe('All features should work', () => {
 
       });
     });
+*/
 
     it('requests should all be made in parallel', (done) => {
-      let npl = new NodeProxyPools({roOps: {apiKey: roApiKey, fetchProxies: 100, debug: false}, minTime: 0, debug: true});
+      let npl = new NodeProxyPools({
+//        roOps: {apiKey: roApiKey, fetchProxies: 100, debug: false},
+        luOps: Object['assign']({fetchProxies: 100}, confJson.luminatiObj),
+        minTime: 0, debug: true});
       let ipPRoms: any[] = [];
       let ops = [] as any;
       let numReq = 30;
@@ -210,6 +313,8 @@ describe('All features should work', () => {
         });
 
         done();
+      }).catch(e=>{
+        done(new Error(e));
       })
     });
 
@@ -217,7 +322,8 @@ describe('All features should work', () => {
       let returnedBeforeComplete = true;
 
       let npl = new NodeProxyPools({
-        roOps: {apiKey: roApiKey, fetchProxies: 100, debug: true},
+ //       roOps: {apiKey: roApiKey, fetchProxies: 100, debug: true},
+        luOps: Object['assign']({fetchProxies: 100}, confJson.luminatiObj),
         debug: true,
         passFn(){
           //if fetch returned before fetch completed, fail test
@@ -248,8 +354,8 @@ describe('All features should work', () => {
       };
 
       let req = [] as any;
-      for(var i = 0; i < 20; ++i){
-        req.push(npl.request({url:'https://www.google.com'}));
+      for(var i = 0; i < 10; ++i){
+        req.push(npl.request({url}));
       }
       Promise.all(req).then(()=>{
         done();
@@ -263,11 +369,12 @@ describe('All features should work', () => {
 
       let npl = new NodeProxyPools({
         debug: true,
-        roOps: {
-          apiKey: roApiKey,
-          fetchProxies: 30,
-          debug: true
-        },
+        // roOps: {
+        //   apiKey: roApiKey,
+        //   fetchProxies: 30,
+        //   debug: true
+        // },
+        luOps: Object['assign']({fetchProxies: 30}, confJson.luminatiObj),
         passFn(resp) {
           timesPassFnCalled++;
           return timesPassFnCalled > 2
@@ -280,7 +387,9 @@ describe('All features should work', () => {
       }).then(resp => {
         expect(timesPassFnCalled).to.be.gt(1);
         done();
-      }).catch(e=>{})
+      }).catch(e=>{
+        done(new Error(e));
+      })
     })
 
     it('if failing the passFn from the request then the request should be tried again', (done) => {
@@ -288,11 +397,12 @@ describe('All features should work', () => {
 
       let npl = new NodeProxyPools({
         debug: true,
-        roOps: {
-          apiKey: roApiKey,
-          fetchProxies: 30,
-          debug: true
-        }
+        // roOps: {
+        //   apiKey: roApiKey,
+        //   fetchProxies: 30,
+        //   debug: true
+        // },
+        luOps: Object['assign']({fetchProxies: 30}, confJson.luminatiObj)
       });
 
       npl.request({
@@ -307,7 +417,9 @@ describe('All features should work', () => {
       }).then(resp => {
         expect(timesPassFnCalled).to.be.gt(1);
         done();
-      }).catch(e=>{})
+      }).catch(e=>{
+        done(new Error(e));
+      })
     })
 
     it('if the failFn returns true then the request should be tried again', (done) => {
@@ -315,11 +427,12 @@ describe('All features should work', () => {
 
       let npl = new NodeProxyPools({
         debug: true,
-        roOps: {
-          apiKey: roApiKey,
-          fetchProxies: 30,
-          debug: true
-        },
+        // roOps: {
+        //   apiKey: roApiKey,
+        //   fetchProxies: 30,
+        //   debug: true
+        // },
+        luOps: Object['assign']({fetchProxies: 30}, confJson.luminatiObj),
         passFn() {
           return false;
         },
@@ -345,11 +458,12 @@ describe('All features should work', () => {
 
       let npl = new NodeProxyPools({
         debug: true,
-        roOps: {
-          apiKey: roApiKey,
-          fetchProxies: 30,
-          debug: true
-        }
+        // roOps: {
+        //   apiKey: roApiKey,
+        //   fetchProxies: 30,
+        //   debug: true
+        // },
+        luOps: Object['assign']({fetchProxies: 30}, confJson.luminatiObj)
       });
 
       npl.request({
@@ -387,7 +501,8 @@ describe('All features should work', () => {
       ];
 
       let npl = new NodeProxyPools({
-        roOps: {apiKey: roApiKey, fetchProxies: 100, debug: true},
+        // roOps: {apiKey: roApiKey, fetchProxies: 100, debug: true},
+        luOps: Object['assign']({fetchProxies: 100}, confJson.luminatiObj),
         debug: true,
         maxTime: 20*1000,
         failFn(){return false;}
@@ -457,9 +572,6 @@ describe('All features should work', () => {
     //     })
     // });
 
-    it('it should complete the test 2', (done) => {
-      done();
-    })
   })
 
   // describe('Performance tests', () => {
