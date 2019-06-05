@@ -193,7 +193,6 @@ export class NodeProxyPools {
 
       if(this.options.debug && !ops.stats.requestStart) {
         ops.stats.requestStart = Date.now();
-        console.log('start',ops.stats.requestStart, this.kk++)
       }
 
       return Axios(ops)

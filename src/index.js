@@ -142,7 +142,6 @@ var NodeProxyPools = /** @class */ (function () {
             }, _this.options.maxTime);
             if (_this.options.debug && !ops.stats.requestStart) {
                 ops.stats.requestStart = Date.now();
-                console.log('start', ops.stats.requestStart, _this.kk++);
             }
             return axios_https_proxy_fix_1.default(ops)
                 .then(function (res) {
