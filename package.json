@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/jerradpatch/node-proxy-pools#readme",
   "dependencies": {
-    "axios": "^0.18.0",
+    "axios": "^0.21.1",
     "axios-https-proxy-fix": "^0.17.1",
     "bottleneck": "^2.18.0",
     "random-useragent": "^0.3.1"
